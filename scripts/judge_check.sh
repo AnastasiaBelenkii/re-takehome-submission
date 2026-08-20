@@ -23,7 +23,7 @@ source["problems"] = [p for p in source["problems"] if p["id"] == "p01_linear"]
 Path(sys.argv[1]).write_text(json.dumps(source, indent=2) + "\n")
 PY
 
-VM_TIME_LIMIT_S=1200 VM_BUDGET_USD=1.00 .venv/bin/python run.py \
+VM_TIME_LIMIT_S=3600 VM_BUDGET_USD=1.00 .venv/bin/python run.py \
   --problems "$WORK/problems" --out "$WORK/outputs" --n-workers 1
 
 .venv/bin/python - "$WORK/outputs" <<'PY'

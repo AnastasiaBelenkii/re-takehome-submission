@@ -79,7 +79,7 @@ class HarnessSettings:
             api_key=os.environ.get("OPENROUTER_API_KEY", "").strip(),
             lean_image=os.environ.get("LEAN_IMAGE", DEFAULT_LEAN_IMAGE).strip(),
             budget_usd=_positive_float("VM_BUDGET_USD", 1.0),
-            time_limit_s=_positive_float("VM_TIME_LIMIT_S", 1200.0),
+            time_limit_s=_positive_float("VM_TIME_LIMIT_S", 3600.0),
             n_workers=n_workers if n_workers is not None else _positive_int("N_WORKERS", 1),
             lean_check_timeout_s=_positive_int("LEAN_CHECK_TIMEOUT_S", 120),
             comparator_timeout_s=_positive_int("COMPARATOR_TIMEOUT_S", 180),

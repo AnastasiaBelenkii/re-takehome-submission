@@ -53,8 +53,8 @@ Your system must use exactly these two models, via OpenRouter:
 ## How we judge
 
 - We clone your repo into the kit devcontainer and run, per problem:
-  `OPENROUTER_API_KEY=<fresh key> VM_TIME_LIMIT_S=3600 VM_BUDGET_USD=1.00 python run.py --problems <holdout> --out <out-root>`
-- **Caps per problem: 1 hour wall-clock and $1.00**, enforced by our
+  `OPENROUTER_API_KEY=<fresh key> VM_TIME_LIMIT_S=28800 VM_BUDGET_USD=1.00 python run.py --problems <holdout> --out <out-root>`
+- **Caps per problem: 8 hours wall-clock and $1.00**, enforced by our
   wrapper (and the fresh key is model-locked to the pair). One run per problem,
   problems isolated: a crash on one problem zeroes only that problem.
 - We re-verify every solution ourselves; anything your harness reports about

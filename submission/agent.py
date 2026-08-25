@@ -88,25 +88,49 @@ class SubmissionAgent:
             else:
                 candidates[model] = _extract_lean(response.content, problem.challenge)
 
-        # Preserve Model A's proposal if the worker is interrupted during selection.
+        successful_models = [
+            model for model in (MODEL_A, MODEL_B) if model not in call_errors
+        ]
+        preliminary_model = successful_models[0] if successful_models else MODEL_A
+
+        # Preserve the first proposal that actually returned if the worker is
+        # interrupted during Lean selection.
         services.checkpoint(
-            candidates[MODEL_A], {"design_id": DESIGN_ID, "selection": "pending"}
+            candidates[preliminary_model],
+            {
+                "design_id": DESIGN_ID,
+                "selection": "pending",
+                "preliminary_model": preliminary_model,
+            },
         )
 
         checks: dict[str, Any] = {}
+        check_errors: dict[str, dict[str, str]] = {}
         for model in (MODEL_A, MODEL_B):
-            checks[model] = await services.lean.check_file(candidates[model])
+            try:
+                checks[model] = await services.lean.check_file(candidates[model])
+            except Exception as exc:
+                checks[model] = None
+                check_errors[model] = {
+                    "type": type(exc).__name__,
+                    "message": str(exc)[:1000],
+                }
 
-        accepted = [model for model in (MODEL_A, MODEL_B) if checks[model].accepted]
+        accepted = [
+            model
+            for model in (MODEL_A, MODEL_B)
+            if checks[model] is not None and checks[model].accepted
+        ]
         if accepted:
             selected = accepted[0]
             selection_reason = "first_lean_accepted_in_fixed_model_order"
-        elif MODEL_A not in call_errors:
-            selected = MODEL_A
-            selection_reason = "fixed_model_a_fallback"
         else:
-            selected = MODEL_B
-            selection_reason = "model_a_call_failed"
+            selected = preliminary_model
+            selection_reason = (
+                "fixed_model_a_fallback"
+                if selected == MODEL_A
+                else "model_a_call_failed"
+            )
 
         metadata = {
             "design_id": DESIGN_ID,
@@ -118,6 +142,7 @@ class SubmissionAgent:
             "selected_model": selected,
             "selection_reason": selection_reason,
             "call_errors": call_errors,
+            "lean_check_errors": check_errors,
             "lean_checks": {
                 model: {
                     "accepted": check.accepted,
@@ -125,6 +150,7 @@ class SubmissionAgent:
                     "message_count": len(check.messages),
                 }
                 for model, check in checks.items()
+                if check is not None
             },
         }
         return AgentResult(candidates[selected], metadata)

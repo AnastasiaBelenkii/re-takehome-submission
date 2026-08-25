@@ -37,7 +37,10 @@ class FakeLean:
         self.accepted_by_source = accepted_by_source
 
     async def check_file(self, source: str):
-        return FakeCheck(self.accepted_by_source[source])
+        result = self.accepted_by_source[source]
+        if isinstance(result, BaseException):
+            raise result
+        return FakeCheck(result)
 
 
 class FakeServices:
@@ -86,3 +89,25 @@ async def test_fixed_model_a_fallback_when_neither_candidate_passes():
 
     assert result.solution == source_a
     assert result.metadata["selection_reason"] == "fixed_model_a_fallback"
+
+
+@pytest.mark.asyncio
+async def test_preserves_model_b_when_model_a_call_and_lean_check_fail():
+    problem = Problem(
+        id="p",
+        description="prove True",
+        challenge="import Mathlib\n\ntheorem p : True := by\n  sorry\n",
+    )
+    source_b = "import Mathlib\n\ntheorem p : True := by\n  trivial\n"
+    services = FakeServices(
+        FakeLLM({MODEL_A: RuntimeError("rate limited"), MODEL_B: source_b}),
+        FakeLean({problem.challenge: RuntimeError("Lean unavailable"), source_b: True}),
+    )
+
+    result = await SubmissionAgent().solve(problem, services)
+
+    assert services.checkpoints[0][0] == source_b
+    assert services.checkpoints[0][1]["preliminary_model"] == MODEL_B
+    assert result.solution == source_b
+    assert result.metadata["selected_model"] == MODEL_B
+    assert MODEL_A in result.metadata["lean_check_errors"]

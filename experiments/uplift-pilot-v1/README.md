@@ -163,3 +163,42 @@ repeat the wave as an integrity repair: primary evidence is valid, reporting is
 recoverable from raw logs, and a post-outcome rerun would add selection bias.
 Confirmation must compare D with a contemporaneous matched no-uplift/H control
 before making an uplift claim.
+
+### 2026-08-27 — confirmation procedure and historical baseline context
+
+Freeze D exactly as selected. The tournament-winner confirmation is an actual
+independent Qwen+GPT two-model portfolio over all 16 sample problems, using the
+full 20-minute-per-problem regime. Run it against a contemporaneous matched
+no-uplift/H independent portfolio (`U0`): same pinned code and environment,
+models, problem set, scheduler, call ceilings, timeout policy, and provenance
+contract. Resource ceilings are matched; realized calls, tokens, cost, and wall
+time are reported rather than forced equal. The older control is admissible only
+if a provenance audit establishes this match; otherwise run a new `U0` control.
+This `U0/C0` versus `D/C0` comparison confirms the selected performance layer;
+the six-problem tournament alone does not establish uplift.
+
+The later collaboration experiment preserves the planned factorial separation:
+cross `U0` versus D with `C0` versus a frozen collaboration treatment. The
+leading treatment discussed is one symmetric reciprocal cross-repair exchange
+without extra model calls, but its exact packet and scheduling are not yet
+preregistered. Do not silently treat that candidate as frozen. A minimal 2x2
+therefore consists of `U0/C0`, `D/C0`, `U0/C1`, and `D/C1`; additional
+collaboration conditions extend the second dimension without changing the
+performance layer.
+
+For context only, restricting the recent historical solo baselines to this
+pilot's six problems gives:
+
+| Condition | Qwen | GPT | Solo sum | Virtual union |
+| --- | ---: | ---: | ---: | ---: |
+| Historical no-uplift baseline | 3/6 | 4/6 | 7/12 | 4/6 |
+| P pilot | 3/6 | 2/6 | 5/12 | 4/6 |
+| D pilot | 4/6 | 3/6 | 7/12 | 5/6 |
+
+Relative to that historical baseline, D is +1 Qwen solve, -1 GPT solve, zero
+aggregate solo solves, and +1 virtual-union solve (5/6 versus 4/6, +16.7
+percentage points). P is 0, -2, -2, and 0 on those respective measures. These
+are unmatched historical comparisons, not causal estimates: the runs differ in
+date, host, concurrency, prompt substrate, and provenance contract. In
+particular, the model crossover is direct evidence that the matched 16-problem
+confirmation is necessary.

@@ -124,3 +124,42 @@ dated validation summaries, policy comparisons, revisions, and the final
 decision below. Never remove or rewrite earlier entries.
 
 <!-- Append observed results below this line. -->
+
+### 2026-08-27 — first four-cell wave
+
+Run commit: `203f42478717fd8f8c2dd65c6a521bc4e1c4f48c`. All four
+self-contained bundles passed validation with no validation errors. Scores were
+Qwen-P 3/6, GPT-P 2/6, Qwen-D 4/6, and GPT-D 3/6. P's score sum and virtual
+union were 5/12 and 4/6; D's were 7/12 and 5/6. D used 146 calls, 977,567
+tokens, $0.2042 recorded cost, and 7,905 seconds summed problem wall time,
+versus P's 159 calls, 1,237,050 tokens, $0.2277, and 8,138 seconds.
+
+The controller-generated `analysis.json` correctly recorded primary outcomes
+but undercounted mechanism calls and outer timeouts because it relied on final
+agent metadata, which is incomplete after worker timeouts. Post-run analysis-
+only commit `f7d4a71a9aa620e6706d12d0bf324356c529a824` derives these counters
+from immutable transcripts/results and adds explicit coverage fields. The raw
+counts are 9 P planning calls (8 nonempty memos injected), 12 D restart calls,
+and 7 outer agent timeouts. The original report and bundles remain unchanged;
+the corrected report must be versioned separately with its analysis-code and
+input hashes.
+
+Mechanism inspection weakens a causal interpretation. Five of D's seven
+successes, including two of its three pairwise-unique wins over P, occurred
+without restart. Its two restart-path successes occurred five ordinary repair
+calls after the second restart, and GPT's second restart exactly repeated a
+previous failed candidate on all three GPT problems where restart fired. P's
+strongest valid planning trace corrected Qwen's wrong numeric answer on
+`p07_least_divisible`, but D also solved that problem. P's only pairwise-unique
+success, GPT `p10_factorial_pow`, had a null planning `content` response and no
+memo was injected, so it is not mechanism-aligned P evidence.
+
+Decision: provisionally select D as the standalone performance-layer winner
+because it wins in the same direction on both models, has the larger union,
+and uses fewer realized resources. This is a tournament selection, not evidence
+that diversified restart caused uplift. Do not run P+D: the preregistered gate
+for credible unique, mechanism-aligned P and D successes is not met. Do not
+repeat the wave as an integrity repair: primary evidence is valid, reporting is
+recoverable from raw logs, and a post-outcome rerun would add selection bias.
+Confirmation must compare D with a contemporaneous matched no-uplift/H control
+before making an uplift claim.

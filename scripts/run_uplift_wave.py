@@ -17,7 +17,7 @@ import shlex
 import subprocess
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +37,7 @@ TERMINAL_REMOTE_STATES = frozenset({"complete", "exited_incomplete"})
 
 
 def _utc_now() -> str:
-    return datetime.now(UTC).isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _atomic_json(path: Path, value: dict[str, Any]) -> None:

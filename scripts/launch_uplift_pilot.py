@@ -11,7 +11,7 @@ import shutil
 import socket
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -172,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"lean_image={check_effective['environment']['LEAN_IMAGE']}")
         return 0
 
-    launched_at = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
+    launched_at = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
     name = f"{condition.condition}-{launched_at}-{commit[:8]}"
     worktree = args.worktrees_root.resolve() / name
     run_root = args.results_root.resolve() / name

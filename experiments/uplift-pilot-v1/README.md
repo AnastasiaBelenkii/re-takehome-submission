@@ -63,8 +63,9 @@ and never into the result bundle.
 ## Collection and evidence rule
 
 Each worker writes a self-contained immutable bundle locally. Collection uses
-`scripts/collect_uplift_pilot.py`, which invokes `rsync --partial` and never
-mutates the remote bundle. `scripts/validate_uplift_pilot.py` checks provenance,
+`scripts/collect_uplift_pilot.py`, which invokes `rsync --partial` into a hidden
+resumable staging directory, atomically publishes a completed local copy, and
+never mutates the remote bundle. `scripts/validate_uplift_pilot.py` checks provenance,
 limits, models, all six problem artifacts, event/transcript/result/summary
 agreement, call ceilings, secret patterns, and checksums. A bundle is evidence
 only when validation succeeds. Invalid and interrupted bundles remain
@@ -78,6 +79,28 @@ After all four bundles pass validation, `scripts/analyze_uplift_pilot.py`
 calculates the predeclared model scores, policy score sums, virtual unions,
 per-problem complementarity, calls, tokens, cost, wall time, timeout counts,
 planning calls, and restart behavior. It refuses missing or invalid cells.
+
+For an unattended concurrent wave, run `scripts/run_uplift_wave.py` inside
+tmux with the exact commit, archive/state paths, four explicit
+`CONDITION=SSH_HOST` mappings, and its literal paid-launch confirmation. It
+writes state before dispatch, launches each cell at most once, monitors to a
+terminal state, collects, validates, appends the ledger, and analyzes only four
+valid bundles. Re-running the same command with an existing state file is
+resume-only and can never automatically retry a paid launch.
+
+Example (replace the commit and archive location deliberately):
+
+```bash
+python3 scripts/run_uplift_wave.py \
+  --commit FULL_40_CHARACTER_COMMIT \
+  --state /opt/takehome-archive/uplift-wave/state.json \
+  --archive-root /opt/takehome-archive/uplift-wave \
+  --cell qwen-p=takehome-worker-2 \
+  --cell gpt-p=takehome-worker-3 \
+  --cell qwen-d=takehome-worker-4 \
+  --cell gpt-d=takehome-worker-5b \
+  --confirm-paid-launch I_UNDERSTAND_THIS_LAUNCHES_PAID_RUNS
+```
 
 ## Predeclared selection and revision rule
 

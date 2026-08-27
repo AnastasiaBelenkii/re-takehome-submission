@@ -81,6 +81,48 @@ def _diagnostics(messages: list[dict[str, Any]], *, limit: int) -> tuple[str, st
     return text, signature, len(messages)
 
 
+def _bounded_excerpt(text: str, *, limit: int) -> str:
+    """Keep both ends of a long artifact so conclusions are not silently lost."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    marker = "\n...[excerpt bounded]...\n"
+    if limit <= len(marker):
+        return text[:limit]
+    available = max(0, limit - len(marker))
+    head = (available * 2) // 3
+    return text[:head] + marker + text[-(available - head) :]
+
+
+def _failed_approach_memory(
+    *,
+    trajectory: int,
+    candidate: str,
+    feedback: str,
+    candidate_hash: str,
+    signature: str,
+    limit: int,
+) -> str:
+    """Build a bounded, substantive record for a diversified restart."""
+    header = (
+        f"trajectory {trajectory}: candidate {candidate_hash[:12]}, "
+        f"error {signature[:12]}"
+    )
+    labels = "\nfailed Lean candidate excerpt:\n\nLean diagnostics:\n"
+    available = max(0, limit - len(header) - len(labels))
+    candidate_limit = max(1, (available * 2) // 3)
+    feedback_limit = max(1, available - candidate_limit)
+    return "\n".join(
+        [
+            header,
+            "failed Lean candidate excerpt:",
+            _bounded_excerpt(candidate, limit=candidate_limit),
+            "Lean diagnostics:",
+            _bounded_excerpt(feedback, limit=feedback_limit),
+        ]
+    )[:limit]
+
+
 @dataclass
 class AttemptRecord:
     attempt: int
@@ -243,7 +285,10 @@ class UpliftPilotAgent:
                         max_tokens=self.planning_max_tokens,
                         temperature=self.temperature,
                     )
-                    memo = plan_response.content[: self.failure_memory_chars]
+                    # The planning response is already bounded by planning_max_tokens.
+                    # Retain the complete memo: truncating it with D's unrelated
+                    # failure-memory limit can discard the final proposed proof plan.
+                    memo = plan_response.content.strip()
                 except (BudgetAccountingError, BudgetExceeded) as exc:
                     calls -= 1
                     planning_fired = False
@@ -275,8 +320,16 @@ class UpliftPilotAgent:
                     restarts += 1
                     attempts[-1].restart_reason = reason
                     failure_memory.append(
-                        f"trajectory {restarts}: candidate {candidate_hash[:12]}, "
-                        f"error {signature[:12]}: {feedback[:900]}"
+                        _failed_approach_memory(
+                            trajectory=restarts,
+                            candidate=candidate,
+                            feedback=feedback,
+                            candidate_hash=candidate_hash,
+                            signature=signature,
+                            # Reserve room for every allowed restart so the bounded
+                            # prompt can retain more than only the latest trajectory.
+                            limit=max(1, self.failure_memory_chars // self.max_restarts),
+                        )
                     )
                     joined = "\n".join(failure_memory)
                     while len(joined) > self.failure_memory_chars and len(failure_memory) > 1:

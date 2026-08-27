@@ -74,3 +74,30 @@ def test_collector_derives_safe_remote_name_and_refuses_overwrite(tmp_path, monk
     monkeypatch.setattr(collector.shutil, "which", lambda _name: "/usr/bin/rsync")
     with pytest.raises(FileExistsError, match="refusing to reuse"):
         collector.collect("worker:/opt/results/qwen-p-run", tmp_path)
+
+
+def test_collector_resumes_staging_and_publishes_atomically(tmp_path, monkeypatch):
+    monkeypatch.setattr(collector.shutil, "which", lambda _name: "/usr/bin/rsync")
+    calls = []
+
+    def fake_rsync(command, *, check):
+        calls.append(command)
+        staging = tmp_path / ".qwen-p-run.partial"
+        (staging / "transferred").write_text(f"attempt {len(calls)}")
+        if len(calls) == 1:
+            raise subprocess.CalledProcessError(12, command)
+
+    monkeypatch.setattr(collector.subprocess, "run", fake_rsync)
+    source = "worker:/opt/results/qwen-p-run"
+    with pytest.raises(subprocess.CalledProcessError):
+        collector.collect(source, tmp_path)
+
+    staging = tmp_path / ".qwen-p-run.partial"
+    assert staging.is_dir()
+    assert not (tmp_path / "qwen-p-run").exists()
+
+    destination = collector.collect(source, tmp_path)
+    assert destination.is_dir()
+    assert not staging.exists()
+    assert (destination / "transferred").read_text() == "attempt 2"
+    assert calls[0][-2:] == [source + "/", str(staging) + "/"]

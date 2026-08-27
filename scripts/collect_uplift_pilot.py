@@ -25,15 +25,27 @@ def collect(source: str, archive_root: Path) -> Path:
     name = _bundle_name(source)
     archive_root = archive_root.resolve()
     destination = archive_root / name
+    staging = archive_root / f".{name}.partial"
     if destination.exists():
         raise FileExistsError(f"refusing to reuse collected bundle: {destination}")
     archive_root.mkdir(parents=True, exist_ok=True)
+    if staging.exists() and not staging.is_dir():
+        raise FileExistsError(f"collection staging path is not a directory: {staging}")
+    staging.mkdir(exist_ok=True)
     subprocess.run(
-        ["rsync", "--archive", "--partial", "--protect-args", source.rstrip("/"), str(archive_root) + "/"],
+        [
+            "rsync",
+            "--archive",
+            "--partial",
+            "--protect-args",
+            source.rstrip("/") + "/",
+            str(staging) + "/",
+        ],
         check=True,
     )
-    if not destination.is_dir():
-        raise RuntimeError(f"rsync completed without creating expected bundle: {destination}")
+    # Publication is atomic. An interrupted transfer leaves only the hidden
+    # staging directory, which a later invocation can safely resume with rsync.
+    staging.rename(destination)
     return destination
 
 

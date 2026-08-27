@@ -84,6 +84,19 @@ async def test_p_plans_once_after_first_failure_and_never_checks_memo():
 
 
 @pytest.mark.asyncio
+async def test_p_retains_complete_token_bounded_planning_memo():
+    memo = "plan-start\n" + ("subgoal detail\n" * 300) + "plan-tail-sentinel"
+    services = FakeServices(
+        [source("direct"), memo, source("memo-conditioned success")],
+        [FakeCheck(), FakeCheck(accepted=True)],
+    )
+    await UpliftPilotAgent(model=MODEL_A, policy="P", max_calls=3).solve(problem(), services)
+    generation_prompt = services.llm.requests[2]["messages"][1]["content"]
+    assert "plan-start" in generation_prompt
+    assert "plan-tail-sentinel" in generation_prompt
+
+
+@pytest.mark.asyncio
 async def test_p_call_ceiling_counts_planning_call():
     services = FakeServices([source("direct"), "memo", source("must not dispatch")], [FakeCheck()])
     result = await UpliftPilotAgent(model=MODEL_A, policy="P", max_calls=2).solve(problem(), services)
@@ -104,6 +117,8 @@ async def test_d_exact_candidate_repetition_triggers_pristine_restart_with_memor
     assert "phase: restart" in restart_prompt
     assert problem().challenge in restart_prompt
     assert "failed-approach memory" in restart_prompt
+    assert "failed Lean candidate excerpt" in restart_prompt
+    assert "-- same" in restart_prompt
     assert result.metadata["attempts"][1]["restart_reason"] == "repeated_normalized_candidate"
     assert result.metadata["planning_calls"] == 0
 

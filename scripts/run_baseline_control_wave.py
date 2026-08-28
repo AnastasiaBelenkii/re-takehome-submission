@@ -107,7 +107,12 @@ def dashboard(state: dict[str, Any], fleet: list[str]) -> str:
         done = int(p.get("completed", 0)); total_done += done
         condition = run_id.rsplit("-r", 1)[0]
         if p.get("state") == "complete": conditions[condition] += 1
-        elapsed = max(0, time.time() - job.get("launched_epoch", time.time())) if job.get("launched_epoch") else 0
+        match = re.search(r"-(\d{8}T\d{6})\.\d+Z-", job.get("run_root", ""))
+        if match:
+            launched = datetime.strptime(match.group(1), "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc).timestamp()
+        else:
+            launched = job.get("launched_epoch", time.time())
+        elapsed = max(0, time.time() - launched)
         if p.get("state") == "complete": eta = "done"
         elif done: eta = f"~{max(0, elapsed * (16-done)/done)/60:.0f}m"
         else: eta = "≤160m"

@@ -9,6 +9,7 @@ compiler message, or model response crosses between tracks.
 from __future__ import annotations
 
 import asyncio
+import itertools
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -19,10 +20,13 @@ from baselines.simple_agent import (
     _format_messages,
 )
 from re_harness import AgentResult, Problem, Services
+from re_harness.budget import BudgetAccountingError, BudgetExceeded
+from re_harness.llm import LLMCallError
 from re_harness.models import MODEL_A, MODEL_B
 
 
 DESIGN_ID = "independent-repair-portfolio-v1"
+JUDGE_MAX_OUTPUT_TOKENS = 32000
 
 
 @dataclass
@@ -49,24 +53,33 @@ class SubmissionAgent:
         max_turns: int | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
+        external_limits_only: bool = False,
     ) -> None:
+        if external_limits_only and (max_turns is not None or max_tokens is not None):
+            raise ValueError(
+                "external_limits_only cannot be combined with internal turn/token overrides"
+            )
+        self.external_limits_only = external_limits_only
+        effective_max_tokens = (
+            JUDGE_MAX_OUTPUT_TOKENS if external_limits_only else max_tokens
+        )
         self._agents = (
             SimpleBaselineAgent(
                 model=MODEL_A,
                 max_turns=max_turns,
-                max_tokens=max_tokens,
+                max_tokens=effective_max_tokens,
                 temperature=temperature,
             ),
             SimpleBaselineAgent(
                 model=MODEL_B,
                 max_turns=max_turns,
-                max_tokens=max_tokens,
+                max_tokens=effective_max_tokens,
                 temperature=temperature,
             ),
         )
 
-    @staticmethod
     def _metadata(
+        self,
         tracks: list[_Track],
         *,
         selected_model: str,
@@ -78,13 +91,20 @@ class SubmissionAgent:
             "communication": "none",
             "repair_policy": "supplied-simple-baseline",
             "schedule": "parallel-model-calls-serialized-lean-checks",
+            "resource_policy": (
+                "external-wall-and-budget-limits-only"
+                if self.external_limits_only
+                else "internally-capped"
+            ),
             "rounds_started": rounds_started,
             "selected_model": selected_model,
             "selection_reason": selection_reason,
             "fixed_model_order": [MODEL_A, MODEL_B],
             "tracks": {
                 track.model: {
-                    "max_turns": track.agent.max_turns,
+                    "max_turns": (
+                        None if self.external_limits_only else track.agent.max_turns
+                    ),
                     "max_tokens": track.agent.max_tokens,
                     "temperature": track.agent.temperature,
                     "attempts": [asdict(attempt) for attempt in track.attempts],
@@ -101,25 +121,44 @@ class SubmissionAgent:
         max_turns = max(track.agent.max_turns for track in tracks)
         rounds_started = 0
 
-        for turn in range(1, max_turns + 1):
+        turns = (
+            itertools.count(1)
+            if self.external_limits_only
+            else range(1, max_turns + 1)
+        )
+        for turn in turns:
             active = [
                 track
                 for track in tracks
-                if not track.disabled and turn <= track.agent.max_turns
+                if not track.disabled
+                and (self.external_limits_only or turn <= track.agent.max_turns)
             ]
             if not active:
                 break
             rounds_started = turn
 
             async def propose(track: _Track):
+                messages = track.agent._messages(
+                    problem,
+                    feedback=track.feedback,
+                    turn=turn,
+                    is_last=(
+                        not self.external_limits_only
+                        and turn == track.agent.max_turns
+                    ),
+                )
+                if self.external_limits_only:
+                    bounded_label = f"Baseline turn: {turn}/{track.agent.max_turns}"
+                    external_label = (
+                        f"Baseline turn: {turn}; external wall-clock and budget "
+                        "limits govern"
+                    )
+                    messages[-1]["content"] = messages[-1]["content"].replace(
+                        bounded_label, external_label, 1
+                    )
                 return await services.llm.complete(
                     model=track.model,
-                    messages=track.agent._messages(
-                        problem,
-                        feedback=track.feedback,
-                        turn=turn,
-                        is_last=turn == track.agent.max_turns,
-                    ),
+                    messages=messages,
                     max_tokens=track.agent.max_tokens,
                     temperature=track.agent.temperature,
                 )
@@ -130,14 +169,23 @@ class SubmissionAgent:
             candidates_to_check: list[_Track] = []
             for track, response in zip(active, responses, strict=True):
                 if isinstance(response, BaseException):
+                    retryable = (
+                        self.external_limits_only
+                        and isinstance(response, LLMCallError)
+                        and "reported no cost" in str(response)
+                    )
                     track.call_errors.append(
                         {
                             "turn": turn,
                             "type": type(response).__name__,
                             "message": str(response)[:1000],
+                            "retryable": retryable,
                         }
                     )
-                    track.disabled = True
+                    if isinstance(response, (BudgetAccountingError, BudgetExceeded)):
+                        track.disabled = True
+                    elif not retryable:
+                        track.disabled = True
                     continue
                 track.candidate = _extract_lean(
                     response.content, fallback=track.candidate
@@ -215,4 +263,6 @@ class SubmissionAgent:
 
 
 def create_agent() -> SubmissionAgent:
-    return SubmissionAgent()
+    # Judging supplies the authoritative eight-hour and $1/problem limits.
+    # Experimental construction remains internally capped by default.
+    return SubmissionAgent(external_limits_only=True)

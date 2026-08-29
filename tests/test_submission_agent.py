@@ -6,7 +6,12 @@ import pytest
 
 from re_harness import Problem
 from re_harness.models import MODEL_A, MODEL_B
-from submission.agent import DESIGN_ID, SubmissionAgent
+from submission.agent import (
+    DESIGN_ID,
+    JUDGE_MAX_OUTPUT_TOKENS,
+    SubmissionAgent,
+    create_agent,
+)
 
 
 class FakeResponse:
@@ -155,3 +160,43 @@ async def test_fixed_model_fallback_after_both_tracks_exhaust_repairs():
     assert result.metadata["selection_reason"] == "fixed_model_order_fallback"
     assert len(result.metadata["tracks"][MODEL_A]["attempts"]) == 2
     assert len(result.metadata["tracks"][MODEL_B]["attempts"]) == 2
+
+
+def test_judged_factory_uses_external_limits_only_but_experiments_do_not():
+    judged = create_agent()
+    experimental = SubmissionAgent()
+
+    assert judged.external_limits_only is True
+    assert {agent.max_tokens for agent in judged._agents} == {JUDGE_MAX_OUTPUT_TOKENS}
+    assert experimental.external_limits_only is False
+    assert {agent.max_turns for agent in experimental._agents} == {25}
+
+
+@pytest.mark.asyncio
+async def test_external_limits_only_ignores_internal_turn_cap():
+    q0, q1 = "import Mathlib\n-- q0\n", "import Mathlib\n-- q1\n"
+    g0 = "import Mathlib\n-- g0\n"
+    g1 = "import Mathlib\n\ntheorem p : True := by\n  trivial\n"
+    llm = FakeLLM({MODEL_A: [q0, q1], MODEL_B: [g0, g1]})
+    services = FakeServices(
+        llm,
+        FakeLean({q0: False, g0: False, q1: False, g1: True}),
+    )
+    agent = SubmissionAgent(external_limits_only=True)
+    for track in agent._agents:
+        track.max_turns = 1
+
+    result = await agent.solve(problem(), services)
+
+    assert result.solution == g1
+    assert result.metadata["rounds_started"] == 2
+    assert result.metadata["resource_policy"] == "external-wall-and-budget-limits-only"
+    assert all(
+        track["max_turns"] is None for track in result.metadata["tracks"].values()
+    )
+    second_round_prompt = str(llm.requests[2]["messages"])
+    assert (
+        "Baseline turn: 2; external wall-clock and budget limits govern"
+        in second_round_prompt
+    )
+    assert "Baseline turn: 2/1" not in second_round_prompt

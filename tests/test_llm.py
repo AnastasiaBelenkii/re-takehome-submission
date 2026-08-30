@@ -8,7 +8,7 @@ import pytest
 
 from re_harness.budget import BudgetAccountingError, BudgetLedger
 from re_harness.events import EventLogger
-from re_harness.llm import LLMCallError, LLMClient, LLMPolicyError
+from re_harness.llm import CostFreeRateLimitError, LLMCallError, LLMClient, LLMPolicyError
 from re_harness.models import MODEL_A
 
 
@@ -153,8 +153,10 @@ async def test_rate_limit_without_reported_cost_leaves_budget_open_for_retry(tmp
         events=EventLogger(tmp_path / "events", problem_id="p"),
         transport=httpx.MockTransport(handler),
     )
-    with pytest.raises(LLMCallError, match="reported no cost"):
+    with pytest.raises(CostFreeRateLimitError, match="reported no cost") as caught:
         await client.complete(model=MODEL_A, messages=[{"role": "user", "content": "x"}])
+    assert caught.value.status_code == 429
+    assert caught.value.cost_status == "none"
     snapshot = ledger.snapshot()
     assert snapshot.accounting_complete
     assert snapshot.reserved_usd == 0
@@ -182,8 +184,9 @@ async def test_rate_limit_with_reported_cost_is_charged(tmp_path):
         events=EventLogger(tmp_path / "events", problem_id="p"),
         transport=httpx.MockTransport(handler),
     )
-    with pytest.raises(LLMCallError, match="after reporting"):
+    with pytest.raises(LLMCallError, match="after reporting") as caught:
         await client.complete(model=MODEL_A, messages=[{"role": "user", "content": "x"}])
+    assert not isinstance(caught.value, CostFreeRateLimitError)
     snapshot = ledger.snapshot()
     assert snapshot.spent_usd == pytest.approx(0.004)
     assert snapshot.accounting_complete

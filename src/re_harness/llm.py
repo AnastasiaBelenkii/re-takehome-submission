@@ -29,6 +29,15 @@ class LLMCallError(RuntimeError):
     pass
 
 
+class CostFreeRateLimitError(LLMCallError):
+    """A provider 429 that was explicitly reported as generating no cost."""
+
+    def __init__(self, message: str, *, status_code: int = 429) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.cost_status = "none"
+
+
 @dataclass(frozen=True)
 class LLMResponse:
     id: str
@@ -195,10 +204,13 @@ class LLMClient:
                 budget=snapshot.__dict__,
                 latency_ms=latency_ms,
             )
-            raise LLMCallError(
+            message = (
                 f"OpenRouter returned HTTP {response.status_code}; {detail}: "
                 f"{error_body[:500]}"
             )
+            if response.status_code == 429 and cost_status == "none":
+                raise CostFreeRateLimitError(message)
+            raise LLMCallError(message)
 
         try:
             data = response.json()

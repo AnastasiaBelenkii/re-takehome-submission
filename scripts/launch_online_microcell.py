@@ -58,7 +58,23 @@ def result_summary(output: Path, task_root: Path) -> dict[str, object]:
     }
 
 
+def validate_api_key(worktree: Path) -> None:
+    env_path = worktree / ".env"
+    try:
+        lines = env_path.read_text().splitlines()
+    except OSError as exc:
+        raise RuntimeError("frozen checkout has no readable .env") from exc
+    configured = any(
+        line.strip().startswith("OPENROUTER_API_KEY=")
+        and line.partition("=")[2].strip()
+        for line in lines
+    )
+    if not configured:
+        raise RuntimeError("frozen checkout has no configured OPENROUTER_API_KEY")
+
+
 def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
+    validate_api_key(worktree)
     descriptor = json.loads(descriptor_path.read_text())
     task = descriptor["task"]
     condition = task["condition"]

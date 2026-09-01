@@ -6,6 +6,7 @@ import json
 import math
 import time
 import uuid
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
@@ -62,6 +63,7 @@ class LLMClient:
         self._api_key = api_key
         self._budget = budget
         self._events = events
+        self._requests_dispatched_by_model: Counter[str] = Counter()
         self._client = httpx.AsyncClient(
             headers={
                 **({"Authorization": f"Bearer {api_key}"} if api_key else {}),
@@ -75,6 +77,11 @@ class LLMClient:
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+    @property
+    def requests_dispatched_by_model(self) -> Mapping[str, int]:
+        """Physical HTTP requests emitted, excluding local preflight failures."""
+        return dict(self._requests_dispatched_by_model)
 
     async def complete(
         self,
@@ -148,6 +155,7 @@ class LLMClient:
         reservation = self._budget.reserve(reserve_usd)
         call_id = uuid.uuid4().hex
         started = time.monotonic()
+        self._requests_dispatched_by_model[model] += 1
         self._events.emit(
             "llm_request",
             call_id=call_id,

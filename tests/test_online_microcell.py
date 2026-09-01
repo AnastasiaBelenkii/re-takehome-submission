@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 
-from scripts.launch_online_microcell import result_summary
+import pytest
+
+from scripts.launch_online_microcell import result_summary, validate_api_key
 
 
 def test_microcell_status_classifies_scientific_result_not_only_process_exit(tmp_path):
@@ -35,3 +37,13 @@ def test_microcell_status_refuses_ambiguous_results(tmp_path):
         "result_artifact_count": 2,
         "result_status": "missing_or_ambiguous",
     }
+
+
+def test_online_launch_requires_nonempty_api_key_without_exposing_it(tmp_path):
+    with pytest.raises(RuntimeError, match="no readable"):
+        validate_api_key(tmp_path)
+    (tmp_path / ".env").write_text("UNRELATED=x\nOPENROUTER_API_KEY=\n")
+    with pytest.raises(RuntimeError, match="no configured"):
+        validate_api_key(tmp_path)
+    (tmp_path / ".env").write_text("OPENROUTER_API_KEY=secret\n")
+    validate_api_key(tmp_path)

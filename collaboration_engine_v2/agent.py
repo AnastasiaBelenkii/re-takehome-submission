@@ -154,6 +154,7 @@ class CollaborationEngineV2Agent:
                 return AgentResult(call_zero, self._metadata(
                     tracks, packet_events, deterministic, best_model=None,
                     best_rank=best_rank, rounds=0, cutoff_reached=False,
+                    provider_requests=self._provider_requests(services),
                 ))
 
         round_number = 0
@@ -277,7 +278,13 @@ class CollaborationEngineV2Agent:
         return AgentResult(best_candidate, self._metadata(
             tracks, packet_events, deterministic, best_model=best_model,
             best_rank=best_rank, rounds=round_number, cutoff_reached=cutoff_reached,
+            provider_requests=self._provider_requests(services),
         ))
+
+    @staticmethod
+    def _provider_requests(services: Services) -> dict[str, int]:
+        raw = getattr(services.llm, "requests_dispatched_by_model", {})
+        return {model: int(raw.get(model, 0)) for model in MODELS}
 
     async def _verify_if_promising(
         self, proposal: str, lean_accepted: bool, services: Services
@@ -406,21 +413,32 @@ class CollaborationEngineV2Agent:
     def _metadata(self, tracks: dict[str, TrackState], packet_events: list[dict[str, Any]],
                   deterministic: dict[str, Any], *, best_model: str | None,
                   best_rank: tuple[int, int, int] | None, rounds: int,
-                  cutoff_reached: bool) -> dict[str, Any]:
+                  cutoff_reached: bool, provider_requests: dict[str, int]) -> dict[str, Any]:
+        physical_requests = sum(provider_requests.values())
+        logical_dispatched = sum(
+            max(0, provider_requests[model] - len(track.retry_events))
+            for model, track in tracks.items()
+        )
         return {
             "design_id": DESIGN_ID, "condition": self.condition, "uplift_policy": "H+D",
             "collaboration_strategy": self.strategy.strategy_id, "seed": self.seed,
             "selected_model": best_model,
             "selection_reason": "accepted" if best_rank and best_rank[0] == 0 else "global_best_checkpoint",
             "max_calls_per_model": self.max_calls_per_model,
-            "calls_dispatched": sum(track.calls for track in tracks.values()),
-            "physical_requests": sum(track.calls + len(track.retry_events) for track in tracks.values()),
+            "calls_attempted": sum(track.calls for track in tracks.values()),
+            "calls_dispatched": logical_dispatched,
+            "physical_requests": physical_requests,
             "cost_free_429_retries": sum(len(track.retry_events) for track in tracks.values()),
             "rounds": rounds, "dispatch_cutoff_s": self.dispatch_cutoff_s,
             "dispatch_cutoff_reached": cutoff_reached, "deterministic": deterministic,
             "packet_events": packet_events,
             "tracks": {model: {
-                "calls_dispatched": track.calls, "restarts": track.restarts,
+                "calls_attempted": track.calls,
+                "calls_dispatched": max(
+                    0, provider_requests[model] - len(track.retry_events)
+                ),
+                "physical_requests": provider_requests[model],
+                "restarts": track.restarts,
                 "attempts": [asdict(attempt) for attempt in track.attempts],
                 "call_errors": track.call_errors, "retry_events": track.retry_events,
                 "failure_memory_entries": len(track.failure_memory),

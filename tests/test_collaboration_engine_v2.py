@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import collections
 import json
 from pathlib import Path
 
@@ -32,9 +33,11 @@ class LLM:
     def __init__(self, responses):
         self.responses = {model: list(values) for model, values in responses.items()}
         self.requests = []
+        self.requests_dispatched_by_model = collections.Counter()
 
     async def complete(self, **kwargs):
         self.requests.append(kwargs)
+        self.requests_dispatched_by_model[kwargs["model"]] += 1
         value = self.responses[kwargs["model"]].pop(0)
         if isinstance(value, BaseException): raise value
         return Response(value)

@@ -131,3 +131,19 @@ rejected a changed statement and forbidden axiom, rejected both corrected
 Putnam circular solutions, and demonstrated that in-agent fresh verification
 and final judging agree. The strengthened worker regression also checks that
 the warm REPL remains usable after the separately scoped Comparator run.
+
+### First provisional-success deployment canary
+
+The first three-host launch from `425a5c8` made zero provider requests. A Git
+archive correctly omitted the untracked `.env`, but the online launcher had no
+secret preflight. The agent then counted six local missing-key failures as
+dispatched and physical calls before ordinary final verification. These are
+configuration canaries, not scientific results.
+
+The launcher now refuses a frozen checkout without a readable, nonempty
+`OPENROUTER_API_KEY` before starting the harness. Provider-request counters are
+maintained by the LLM client at the actual HTTP emission boundary; agent
+metadata separately reports semantic calls attempted, logical provider calls,
+and physical requests including retries. The secret is copied server-side from
+the existing protected checkout and is never printed or added to Git. Relaunch
+uses distinct `stage2g2r1-*` task IDs and preserves the failed artifacts.

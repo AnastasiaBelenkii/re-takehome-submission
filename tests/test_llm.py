@@ -57,8 +57,29 @@ async def test_logged_openrouter_call_uses_actual_cost_and_no_secret(tmp_path):
     )
     await client.aclose()
     assert response.content == f"answer {key}"
+    assert client.requests_dispatched_by_model == {MODEL_A: 1}
     assert ledger.snapshot().spent_usd == pytest.approx(0.0123)
     assert key not in events_path.read_text()
+
+
+@pytest.mark.asyncio
+async def test_missing_key_is_not_counted_as_a_dispatched_request(tmp_path):
+    client = LLMClient(
+        api_key="",
+        budget=BudgetLedger(1),
+        events=EventLogger(tmp_path / "events", problem_id="p"),
+        transport=httpx.MockTransport(
+            lambda _request: (_ for _ in ()).throw(
+                AssertionError("transport should not be called")
+            )
+        ),
+    )
+    with pytest.raises(LLMCallError, match="not configured"):
+        await client.complete(
+            model=MODEL_A, messages=[{"role": "user", "content": "x"}]
+        )
+    assert client.requests_dispatched_by_model == {}
+    await client.aclose()
 
 
 @pytest.mark.asyncio

@@ -12,11 +12,10 @@ loop. Its pre-install data snapshot is stored on worker 6 at:
 
 The experiment-worker namespace is workers 1--9. Every launcher must still
 perform a live reachability and idle-state preflight before assigning work.
-From the current development host, workers 2, 3, 4, 6, 7, 8, and 9 are
-reachable and idle; the `takehome-worker-1` and `takehome-worker-5` aliases do
-not currently resolve. Historical plans may refer to a separate
-`takehome-worker-5b` alias, which is not evidence that worker 5 is currently
-available.
+Compatibility aliases map `takehome-worker-1` to the machine canonically named
+`takehome-control` and `takehome-worker-5` to the replacement machine
+canonically named `takehome-worker-5b`. The canonical aliases remain valid;
+experiment plans should use the numbered worker aliases consistently.
 
 This allocation is operational metadata, not an experimental condition.
 Changing it requires updating this document and the dispatcher's reserved-host

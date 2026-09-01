@@ -186,3 +186,30 @@ packet provenance, and cancellation of in-flight requests. In the pinned Lean
 image, the independent scheduler exercised four real warm-REPL checks while a
 deliberately delayed peer failed to block the fast track; the scheduler test
 and the full worker fresh-verifier regression both passed in 79.28 seconds.
+
+### Independent-scheduler scientific canary
+
+The matched `stage2async1-*` cells completed cleanly with 16 fully accounted
+provider responses, zero 429 retries, zero provider or harness errors, and zero
+warm-Lean successes. C0/C1/C2 dispatched 5/6/5 calls. Every cell completed all
+three Qwen calls; the previous lockstep C2 cell completed only two. Live events
+showed Qwen calls 2 and 3 dispatching while the first GPT call remained in
+flight. This is direct validation that independent scheduling restores
+fast-track dosage.
+
+The endpoint remained heavy-tailed. GPT latencies reached 342.8 seconds in C0
+and 247.1 seconds in C2, causing those tracks to cross the unchanged dispatch
+cutoff after GPT call 2. The HTTP client's read timeout is an inactivity limit,
+not a total request deadline; cancelling an already dispatched paid call would
+make spend uncertain under the current accounting contract. Thus the scheduler
+fix prevents the tail from idling Qwen but cannot safely erase GPT tail latency.
+Wall time is not a clean comparison across the two waves because provider
+latency changed substantially.
+
+Packet provenance also prevents a false mechanism interpretation. Qwen had
+already exhausted its calls before GPT observations arrived. C1 generated two
+packets, used one on GPT call 2, and left one queued for Qwen. C2 generated four,
+used one on GPT call 2, and left three queued. Therefore the current reciprocal
+strategies do not deliver reciprocal exposure under realistic latency skew.
+This is a mechanism-design problem to address only after the remaining shared
+substrate audit; it is not a reason to restore lockstep.

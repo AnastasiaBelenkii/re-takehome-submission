@@ -12,6 +12,7 @@ from baselines.simple_agent import _extract_lean
 from re_harness import AgentResult, Problem, Services
 from re_harness.budget import BudgetAccountingError, BudgetExceeded
 from re_harness.llm import CostFreeRateLimitError
+from re_harness.models import MODEL_A
 from uplift_pilot.agent import _bounded_excerpt, _diagnostics, _normalized_candidate, _sha256
 
 from .constants import DESIGN_ID, MODELS
@@ -395,6 +396,7 @@ class CollaborationEngineV2Agent:
                     model=track.model, messages=messages,
                     max_tokens=self.generation_max_tokens, temperature=self.temperature,
                     seed=self.seed,
+                    reasoning={"effort": "none"} if track.model == MODEL_A else None,
                 )
             except CostFreeRateLimitError as exc:
                 track.retry_events.append({

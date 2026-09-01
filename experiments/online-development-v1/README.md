@@ -231,3 +231,22 @@ worker, Comparator, or published evaluation command. Provisional recovery
 checkpoints are ignored. Focused tests report 22 passed; the full non-Docker
 suite reports 96 passed and 9 skipped, with only the already documented
 intentional frozen-manifest mismatch failing.
+
+### Qwen reasoning-control closure
+
+Five of the nine Qwen calls in the independent-scheduler canary exhausted the
+12,000-token completion ceiling. Two truncated before returning the required
+theorem. A single paid replay used the exact worst archived repair prompt and
+changed only `reasoning.effort` to `none`, which OpenRouter's live model
+metadata permits for Qwen but not for GPT-OSS.
+
+The archived control used 12,000 completion tokens, 68.374 seconds, and
+$0.00329459, ending with `finish_reason=length` and no complete required
+theorem. The probe used 3,828 tokens, 20.947 seconds, and $0.00117, ended with
+`finish_reason=stop`, and returned a structurally complete theorem. Warm Lean
+rejected the proof with four messages; this probe establishes output usability
+and resource reduction, not proof quality. The shared v2 invocation now sends
+`reasoning={"effort":"none"}` for Qwen in every condition and leaves mandatory
+GPT-OSS reasoning unchanged. Raw probe events and candidate are preserved at
+`/opt/takehome-qwen-reasoning-probe-r1`; the compact result is checked in as
+`qwen-reasoning-probe-r1-results.json`.

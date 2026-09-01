@@ -253,3 +253,11 @@ and resource reduction, not proof quality. The shared v2 invocation now sends
 GPT-OSS reasoning unchanged. Raw probe events and candidate are preserved at
 `/opt/takehome-qwen-reasoning-probe-r1`; the compact result is checked in as
 `qwen-reasoning-probe-r1-results.json`.
+
+After reviewing the first end-to-end reasoning-off base canary, the working
+policy was deliberately changed to explicit medium reasoning for both Qwen and
+GPT-OSS. This keeps reasoning effort matched across tracks and conditions for
+the next mechanism comparisons. The reasoning-off canary remains a frozen
+efficiency/quality diagnostic and must not be pooled with medium-reasoning
+results. Medium parity is the current default, not a claim that an ablation has
+established it as optimal.

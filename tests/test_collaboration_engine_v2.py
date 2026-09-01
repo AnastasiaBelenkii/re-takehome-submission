@@ -199,11 +199,13 @@ async def test_c0_c1_c2_first_round_requests_are_byte_identical_for_paired_seed(
                     for services, _result in arms]
         assert requests[0] == requests[1] == requests[2]
         assert requests[0]["seed"] == 1
-        if model == MODEL_A:
-            assert requests[0]["reasoning"] == {"effort": "none"}
-        else:
-            assert requests[0]["reasoning"] is None
+        assert requests[0]["reasoning"] == {"effort": "medium"}
     assert [len(result.metadata["packet_events"]) for _s, result in arms] == [0, 2, 4]
+    assert all(
+        result.metadata["reasoning_effort_by_model"]
+        == {MODEL_A: "medium", MODEL_B: "medium"}
+        for _services, result in arms
+    )
 
 
 @pytest.mark.asyncio

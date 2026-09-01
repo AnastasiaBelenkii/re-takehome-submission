@@ -12,6 +12,7 @@ from pathlib import Path
 
 
 CONFIRMATION = "I_UNDERSTAND_THIS_LAUNCHES_PAID_STAGE2_CELLS"
+RESERVED_NON_WORKER_HOSTS = frozenset({"takehome-worker-10"})
 
 
 def now() -> str:
@@ -34,6 +35,21 @@ def ssh(host: str, command: str) -> str:
     )
 
 
+def validate_worker_allocation(plan: dict[str, object]) -> None:
+    tasks = plan.get("tasks")
+    if not isinstance(tasks, list):
+        raise ValueError("plan.tasks must be a list")
+    reserved = sorted({
+        task.get("worker")
+        for task in tasks
+        if isinstance(task, dict) and task.get("worker") in RESERVED_NON_WORKER_HOSTS
+    })
+    if reserved:
+        raise ValueError(
+            "plan schedules coordinator-only host(s): " + ", ".join(reserved)
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", type=Path, required=True)
@@ -44,6 +60,7 @@ def main() -> int:
     parser.add_argument("--collect", action="store_true")
     args = parser.parse_args()
     plan = json.loads(args.plan.read_text())
+    validate_worker_allocation(plan)
     checkout_commit = run(["git", "rev-parse", "HEAD"], capture=True).strip()
     local_root = args.local_root.resolve()
     local_root.mkdir(parents=True, exist_ok=True)

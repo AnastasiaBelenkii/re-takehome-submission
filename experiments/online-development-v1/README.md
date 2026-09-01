@@ -1,5 +1,8 @@
 # Online development v1
 
+> **Infrastructure allocation:** worker 10 is coordinator-only and must never
+> receive an experiment cell. See [WORKER_ALLOCATION.md](WORKER_ALLOCATION.md).
+
 This prospective development line starts from corrected-challenge commit
 `e1c8fee`. It does not modify C0/C1/C2 strategy definitions. Its first revision
 changes only shared candidate-safety, verification, state, and deadline

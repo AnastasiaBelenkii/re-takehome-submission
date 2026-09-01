@@ -1,7 +1,8 @@
 # Online development v1
 
-> **Infrastructure allocation:** worker 10 is coordinator-only and must never
-> receive an experiment cell. See [WORKER_ALLOCATION.md](WORKER_ALLOCATION.md).
+> **Infrastructure allocation:** workers 8--9 are human-directed only and
+> worker 10 is the machine-controlled coordinator. Automated cells use only
+> workers 1--7. See [WORKER_ALLOCATION.md](WORKER_ALLOCATION.md).
 
 This prospective development line starts from corrected-challenge commit
 `e1c8fee`. It does not modify C0/C1/C2 strategy definitions. Its first revision

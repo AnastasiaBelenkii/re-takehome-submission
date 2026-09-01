@@ -12,7 +12,11 @@ from pathlib import Path
 
 
 CONFIRMATION = "I_UNDERSTAND_THIS_LAUNCHES_PAID_STAGE2_CELLS"
-RESERVED_NON_WORKER_HOSTS = frozenset({"takehome-worker-10"})
+RESERVED_NON_WORKER_HOSTS = frozenset({
+    "takehome-worker-8",
+    "takehome-worker-9",
+    "takehome-worker-10",
+})
 
 
 def now() -> str:
@@ -46,7 +50,7 @@ def validate_worker_allocation(plan: dict[str, object]) -> None:
     })
     if reserved:
         raise ValueError(
-            "plan schedules coordinator-only host(s): " + ", ".join(reserved)
+            "plan schedules reserved non-experiment host(s): " + ", ".join(reserved)
         )
 
 
@@ -60,7 +64,6 @@ def main() -> int:
     parser.add_argument("--collect", action="store_true")
     args = parser.parse_args()
     plan = json.loads(args.plan.read_text())
-    validate_worker_allocation(plan)
     checkout_commit = run(["git", "rev-parse", "HEAD"], capture=True).strip()
     local_root = args.local_root.resolve()
     local_root.mkdir(parents=True, exist_ok=True)
@@ -87,6 +90,7 @@ def main() -> int:
             print(status.strip())
         return 0
 
+    validate_worker_allocation(plan)
     if args.confirm_paid_launch != CONFIRMATION:
         raise SystemExit(f"confirmation required: {CONFIRMATION}")
     for task in plan["tasks"]:

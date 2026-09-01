@@ -17,6 +17,14 @@ core and one replication on each of the ten remaining corrected problems. The
 trios. This experiment-specific use of workers 1--9 was explicitly authorized;
 worker 10 remains excluded.
 
+The writeup-ready methods snapshot for this wave is in `METHODS.md`. Stage 3
+and later experiment waves should commit a wave-local methods snapshot beside
+their frozen plan before or during execution. The snapshot must identify the
+exact source commit under test, dataset and replication structure, conditions,
+shared substrate, resources, verification path, outcomes, and limitations.
+Later mechanism revisions receive a new experiment version and methods
+snapshot rather than silently rewriting the historical document.
+
 ## Common-substrate revision
 
 - Required challenge declarations must appear exactly once with unchanged

@@ -34,13 +34,21 @@ class LLM:
         self.responses = {model: list(values) for model, values in responses.items()}
         self.requests = []
         self.requests_dispatched_by_model = collections.Counter()
+        self.active = 0
 
     async def complete(self, **kwargs):
         self.requests.append(kwargs)
         self.requests_dispatched_by_model[kwargs["model"]] += 1
-        value = self.responses[kwargs["model"]].pop(0)
-        if isinstance(value, BaseException): raise value
-        return Response(value)
+        self.active += 1
+        try:
+            value = self.responses[kwargs["model"]].pop(0)
+            if isinstance(value, tuple):
+                delay, value = value
+                await asyncio.sleep(delay)
+            if isinstance(value, BaseException): raise value
+            return Response(value)
+        finally:
+            self.active -= 1
 
 
 class Check:
@@ -192,6 +200,53 @@ async def test_c0_c1_c2_first_round_requests_are_byte_identical_for_paired_seed(
         assert requests[0] == requests[1] == requests[2]
         assert requests[0]["seed"] == 1
     assert [len(result.metadata["packet_events"]) for _s, result in arms] == [0, 2, 4]
+
+
+@pytest.mark.asyncio
+async def test_fast_track_advances_without_waiting_and_packets_keep_provenance():
+    responses = {
+        MODEL_A: [(0.001, source(f"a{i}")) for i in range(3)],
+        MODEL_B: [(0.05, source("b0")), (0.001, source("b1")), (0.001, source("b2"))],
+    }
+    services = Services(responses, [False] * 7)
+    result = await agent(
+        ReciprocalCadence(packet_chars=6000, repeat=True), max_calls_per_model=3
+    ).solve(problem(), services)
+
+    models_in_dispatch_order = [request["model"] for request in services.llm.requests]
+    assert models_in_dispatch_order[:5] == [MODEL_A, MODEL_B, MODEL_A, MODEL_A, MODEL_B]
+    a_requests = [r for r in services.llm.requests if r["model"] == MODEL_A]
+    b_requests = [r for r in services.llm.requests if r["model"] == MODEL_B]
+    assert all("Independent peer" not in r["messages"][1]["content"] for r in a_requests)
+    assert "Independent peer" in b_requests[1]["messages"][1]["content"]
+    assert "Independent peer" in b_requests[2]["messages"][1]["content"]
+
+    events = result.metadata["packet_events"]
+    b_events = [event for event in events if event["target_model"] == MODEL_B]
+    a_events = [event for event in events if event["target_model"] == MODEL_A]
+    assert [event.get("used_on_call") for event in b_events[:2]] == [2, 3]
+    assert all("used_on_call" not in event for event in a_events)
+
+
+@pytest.mark.asyncio
+async def test_cancelling_agent_cancels_independent_inflight_requests():
+    services = Services(
+        {
+            MODEL_A: [(60, source("a"))],
+            MODEL_B: [(60, source("b"))],
+        },
+        [False],
+    )
+    task = asyncio.create_task(
+        agent(NoCollaboration(), max_calls_per_model=1).solve(problem(), services)
+    )
+    while len(services.llm.requests) < 2:
+        await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await asyncio.sleep(0)
+    assert services.llm.active == 0
 
 
 @pytest.mark.asyncio

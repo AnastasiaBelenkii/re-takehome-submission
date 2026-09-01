@@ -147,3 +147,42 @@ metadata separately reports semantic calls attempted, logical provider calls,
 and physical requests including retries. The secret is copied server-side from
 the existing protected checkout and is never printed or added to Git. Relaunch
 uses distinct `stage2g2r1-*` task IDs and preserves the failed artifacts.
+
+### Provisional-success scientific canary
+
+The three matched `stage2g2r1-*` cells completed with 16 provider responses,
+zero 429 retries, zero structural rejections, and zero warm-Lean successes.
+Consequently the event-driven fresh verifier made zero in-agent Comparator
+calls, as intended. C0 and C1 received all six planned calls in 320.193 and
+276.836 seconds. C2 received only four calls and hit the dispatch cutoff after
+512.174 seconds. Its two Qwen calls took 25.1 and 13.0 seconds while the paired
+GPT calls took 115.1 and 226.4 seconds. This is direct evidence that lockstep
+suppresses treatment dosage and wastes fast-track capacity. The wave validates
+the gate revision but is not used to estimate mechanism performance.
+
+## Independent-track scheduler revision
+
+Mechanism iteration remains paused. The shared scheduler now dispatches each
+model's next repair as soon as that track's response and Lean check complete.
+Observations retain per-track logical call numbers. The unchanged strategy is
+invoked when both observations for a logical round exist; generated packets
+are queued for the target's next not-yet-dispatched call rather than blocking
+the fast track or overwriting an earlier pending packet.
+
+Every packet event records its generation round, source, target, queue
+position, and (when consumed) target call and round. This makes latency-induced
+asymmetric exposure auditable. Metadata separates calls attempted, logical
+provider calls, and physical HTTP requests. An outer cancellation cancels all
+independently in-flight requests so deadline handling cannot leak background
+spend. No larger online wave should run until this scheduler completes the
+offline, pinned-image, and matched online ladder.
+
+The offline non-Docker suite reports 95 passed and 8 skipped. Its sole failure
+is the inherited frozen-manifest hash assertion: the corrected sample manifest
+is intentionally different from the earlier solo experiment snapshot, so that
+test must not be weakened or relabeled as a scheduler regression. Focused
+scheduler tests report 37 passed, including fast-track advancement, queued
+packet provenance, and cancellation of in-flight requests. In the pinned Lean
+image, the independent scheduler exercised four real warm-REPL checks while a
+deliberately delayed peer failed to block the fast track; the scheduler test
+and the full worker fresh-verifier regression both passed in 79.28 seconds.

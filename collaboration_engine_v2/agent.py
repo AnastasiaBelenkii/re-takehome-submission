@@ -63,7 +63,7 @@ class TrackState:
     attempts: list[AttemptRecord] = field(default_factory=list)
     call_errors: list[dict[str, Any]] = field(default_factory=list)
     retry_events: list[dict[str, Any]] = field(default_factory=list)
-    pending_packet: PeerPacket | None = None
+    pending_packets: list[tuple[PeerPacket, dict[str, Any]]] = field(default_factory=list)
     active: bool = True
 
 
@@ -157,30 +157,70 @@ class CollaborationEngineV2Agent:
                     provider_requests=self._provider_requests(services),
                 ))
 
-        round_number = 0
         cutoff_reached = False
-        while any(self._has_capacity(track) for track in tracks.values()):
-            if self.clock() - started >= self.dispatch_cutoff_s:
-                cutoff_reached = True
-                break
-            round_number += 1
-            scheduled = [tracks[model] for model in MODELS if self._has_capacity(tracks[model])]
-            phases: dict[str, str] = {}
-            used_packets: dict[str, PeerPacket | None] = {}
-            requests = []
-            for track in scheduled:
-                phase = "direct" if not track.attempts else ("restart" if track.restart_pending else "repair")
-                phases[track.model] = phase
-                used_packets[track.model] = track.pending_packet
-                track.pending_packet = None
-                track.calls += 1
-                requests.append(self._call(track, problem, phase, used_packets[track.model], services))
+        observations_by_round: dict[int, dict[str, TrackObservation]] = {}
+        pending: dict[
+            asyncio.Task,
+            tuple[TrackState, str, PeerPacket | None, dict[str, Any] | None, int],
+        ] = {}
+        owner_task = asyncio.current_task()
 
-            responses = await asyncio.gather(*requests, return_exceptions=True)
-            observations: list[TrackObservation] = []
-            any_accepted = False
-            for track, response in zip(scheduled, responses, strict=True):
-                phase, packet = phases[track.model], used_packets[track.model]
+        def cancel_children_if_owner_cancelled(task: asyncio.Task) -> None:
+            if task.cancelled():
+                for child in tuple(pending):
+                    child.cancel()
+
+        if owner_task is not None:
+            owner_task.add_done_callback(cancel_children_if_owner_cancelled)
+
+        def schedule(track: TrackState, *, check_cutoff: bool = True) -> bool:
+            nonlocal cutoff_reached
+            if not self._has_capacity(track):
+                return False
+            if check_cutoff and self.clock() - started >= self.dispatch_cutoff_s:
+                cutoff_reached = True
+                return False
+            phase = "direct" if not track.attempts else (
+                "restart" if track.restart_pending else "repair"
+            )
+            packet: PeerPacket | None = None
+            packet_event: dict[str, Any] | None = None
+            if track.pending_packets:
+                packet, packet_event = track.pending_packets.pop(0)
+            track.calls += 1
+            call_round = track.calls
+            if packet_event is not None:
+                packet_event["used_on_call"] = track.calls
+                packet_event["used_on_round"] = call_round
+            task = asyncio.create_task(
+                self._call(track, problem, phase, packet, services)
+            )
+            pending[task] = (track, phase, packet, packet_event, call_round)
+            return True
+
+        if self.clock() - started >= self.dispatch_cutoff_s:
+            cutoff_reached = True
+        else:
+            for model in MODELS:
+                schedule(tracks[model], check_cutoff=False)
+
+        verified_success = False
+        while pending:
+            completed, _still_pending = await asyncio.wait(
+                tuple(pending), return_when=asyncio.FIRST_COMPLETED
+            )
+            ready_to_schedule: list[TrackState] = []
+            completed_observation_rounds: set[int] = set()
+            ordered_completed = sorted(
+                completed,
+                key=lambda task: MODELS.index(pending[task][0].model),
+            )
+            for task in ordered_completed:
+                track, phase, packet, _packet_event, call_round = pending.pop(task)
+                try:
+                    response = task.result()
+                except BaseException as exc:
+                    response = exc
                 if isinstance(response, (BudgetAccountingError, BudgetExceeded)):
                     track.calls -= 1
                     track.active = False
@@ -189,6 +229,7 @@ class CollaborationEngineV2Agent:
                 if isinstance(response, BaseException):
                     track.call_errors.append(self._error(response, track.calls, phase, True))
                     track.restart_pending = False
+                    ready_to_schedule.append(track)
                     continue
 
                 extracted = _extract_lean(response.content, fallback=track.candidate)
@@ -241,7 +282,7 @@ class CollaborationEngineV2Agent:
                 if checkpoint_saved:
                     best_rank, best_candidate, best_model = rank, proposal, track.model
                     checkpoint_metadata = self._checkpoint_metadata(
-                        track, round_number, candidate_hash
+                        track, call_round, candidate_hash
                     )
                     checkpoint_metadata["compatibility_status"] = (
                         "fresh_comparator_passed" if accepted
@@ -249,7 +290,7 @@ class CollaborationEngineV2Agent:
                     )
                     services.checkpoint(best_candidate, checkpoint_metadata)
                 record = AttemptRecord(
-                    len(track.attempts) + 1, track.calls, round_number, phase,
+                    len(track.attempts) + 1, track.calls, call_round, phase,
                     candidate_hash, signature, lean_accepted, accepted,
                     lean_accepted, bool(compatibility.get("passed")),
                     timed_out, raw_count,
@@ -258,22 +299,47 @@ class CollaborationEngineV2Agent:
                 )
                 track.attempts.append(record)
                 track.restart_pending = False
-                observations.append(TrackObservation(
-                    track.model, round_number, track.calls, track.candidate,
+                observation = TrackObservation(
+                    track.model, call_round, track.calls, track.candidate,
                     diagnostic_text, accepted, timed_out,
-                ))
-                any_accepted = any_accepted or accepted
+                )
+                observations_by_round.setdefault(call_round, {})[track.model] = observation
+                completed_observation_rounds.add(call_round)
+                verified_success = verified_success or accepted
                 if not accepted:
                     track.feedback = diagnostic_text or (
                         "Lean timed out while checking the candidate." if timed_out
                         else "Lean rejected the candidate without a diagnostic message."
                     )
                     self._update_decomposition(track, signature, repeated, problem.challenge)
+                    ready_to_schedule.append(track)
 
-            if any_accepted:
+            for completed_round in sorted(completed_observation_rounds):
+                paired = observations_by_round.get(completed_round, {})
+                if len(paired) != len(MODELS):
+                    continue
+                observations = tuple(paired[model] for model in MODELS)
+                packets = tuple(self.strategy.after_round(observations))
+                self._install_packets(packets, tracks, completed_round, packet_events)
+                del observations_by_round[completed_round]
+
+            if verified_success:
+                if pending:
+                    await asyncio.gather(*tuple(pending), return_exceptions=True)
+                    pending.clear()
                 break
-            packets = tuple(self.strategy.after_round(tuple(observations)))
-            self._install_packets(packets, tracks, round_number, packet_events)
+
+            if ready_to_schedule:
+                if self.clock() - started >= self.dispatch_cutoff_s:
+                    cutoff_reached = True
+                else:
+                    for track in ready_to_schedule:
+                        schedule(track, check_cutoff=False)
+
+        round_number = max((track.calls for track in tracks.values()), default=0)
+
+        if owner_task is not None:
+            owner_task.remove_done_callback(cancel_children_if_owner_cancelled)
 
         return AgentResult(best_candidate, self._metadata(
             tracks, packet_events, deterministic, best_model=best_model,
@@ -403,12 +469,14 @@ class CollaborationEngineV2Agent:
             if not packet.content.strip() or len(packet.content) > self.peer_packet_chars:
                 raise ValueError("strategy packet is empty or oversized")
             targets.add(packet.target_model)
-            tracks[packet.target_model].pending_packet = packet
-            events.append({
+            event = {
                 "after_round": round_number, "target_model": packet.target_model,
                 "source_model": packet.source_model, "kind": packet.kind,
                 "content_chars": len(packet.content), "content_sha256": _sha256(packet.content),
-            })
+                "queue_position": len(tracks[packet.target_model].pending_packets) + 1,
+            }
+            tracks[packet.target_model].pending_packets.append((packet, event))
+            events.append(event)
 
     def _metadata(self, tracks: dict[str, TrackState], packet_events: list[dict[str, Any]],
                   deterministic: dict[str, Any], *, best_model: str | None,
@@ -422,6 +490,7 @@ class CollaborationEngineV2Agent:
         return {
             "design_id": DESIGN_ID, "condition": self.condition, "uplift_policy": "H+D",
             "collaboration_strategy": self.strategy.strategy_id, "seed": self.seed,
+            "scheduler": "independent-track-v1",
             "selected_model": best_model,
             "selection_reason": "accepted" if best_rank and best_rank[0] == 0 else "global_best_checkpoint",
             "max_calls_per_model": self.max_calls_per_model,
@@ -429,7 +498,8 @@ class CollaborationEngineV2Agent:
             "calls_dispatched": logical_dispatched,
             "physical_requests": physical_requests,
             "cost_free_429_retries": sum(len(track.retry_events) for track in tracks.values()),
-            "rounds": rounds, "dispatch_cutoff_s": self.dispatch_cutoff_s,
+            "rounds": rounds, "max_track_rounds": rounds,
+            "dispatch_cutoff_s": self.dispatch_cutoff_s,
             "dispatch_cutoff_reached": cutoff_reached, "deterministic": deterministic,
             "packet_events": packet_events,
             "tracks": {model: {
@@ -438,6 +508,7 @@ class CollaborationEngineV2Agent:
                     0, provider_requests[model] - len(track.retry_events)
                 ),
                 "physical_requests": provider_requests[model],
+                "pending_peer_packets": len(track.pending_packets),
                 "restarts": track.restarts,
                 "attempts": [asdict(attempt) for attempt in track.attempts],
                 "call_errors": track.call_errors, "retry_events": track.retry_events,

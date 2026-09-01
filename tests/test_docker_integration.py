@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import collections
 import json
 import os
 import uuid
@@ -8,10 +9,14 @@ from pathlib import Path
 
 import pytest
 
+from collaboration_engine_v2.agent import CollaborationEngineV2Agent
+from collaboration_engine_v2.strategies import NoCollaboration
+from re_harness import Problem, Services
 from re_harness.events import EventLogger
 from re_harness.config import HarnessSettings
 from re_harness.lean import LeanClient, compare_solution
 from re_harness.manifest import ProblemSpec, load_problem_set
+from re_harness.models import MODEL_A, MODEL_B
 from re_harness.runner import run
 
 
@@ -64,6 +69,73 @@ def test_real_repl_uses_pristine_import_environment(tmp_path):
             assert valid.accepted
         finally:
             client.close()
+
+    asyncio.run(exercise())
+
+
+def test_real_repl_with_independent_track_scheduler(tmp_path):
+    class Response:
+        def __init__(self, content):
+            self.content = content
+
+    class DelayedLLM:
+        def __init__(self):
+            self.requests = []
+            self.requests_dispatched_by_model = collections.Counter()
+
+        async def complete(self, **kwargs):
+            model = kwargs["model"]
+            self.requests.append(model)
+            self.requests_dispatched_by_model[model] += 1
+            await asyncio.sleep(0.01 if model == MODEL_A else 0.5)
+            return Response(
+                "import Mathlib\n\ntheorem async_probe : True := by trivial\n"
+            )
+
+    async def exercise() -> None:
+        llm = DelayedLLM()
+        lean = LeanClient(
+            image=IMAGE or "",
+            events=EventLogger(tmp_path / "async-events.jsonl", problem_id="async"),
+            timeout_s=30,
+        )
+
+        async def reject_provisional(_source):
+            return {
+                "passed": False,
+                "answer_shape_passed": True,
+                "comparator_passed": False,
+                "comparator_timed_out": False,
+                "comparator_exit_code": 1,
+            }
+
+        services = Services(
+            llm=llm, lean=lean, checkpoint=lambda _source, _metadata: None,
+            verify=reject_provisional,
+        )
+        problem = Problem(
+            id="async",
+            description="Prove True",
+            challenge="import Mathlib\n\ntheorem async_probe : True := by trivial\n",
+        )
+        try:
+            result = await CollaborationEngineV2Agent(
+                strategy=NoCollaboration(), max_calls_per_model=2,
+                retry_backoff_s=0,
+            ).solve(problem, services)
+        finally:
+            lean.close()
+
+        assert llm.requests[:3] == [MODEL_A, MODEL_B, MODEL_A]
+        assert result.metadata["scheduler"] == "independent-track-v1"
+        assert result.metadata["physical_requests"] == 4
+        attempts = [
+            attempt
+            for track in result.metadata["tracks"].values()
+            for attempt in track["attempts"]
+        ]
+        assert all(attempt["lean_accepted"] for attempt in attempts)
+        assert not any(attempt["compatibility_passed"] for attempt in attempts)
 
     asyncio.run(exercise())
 

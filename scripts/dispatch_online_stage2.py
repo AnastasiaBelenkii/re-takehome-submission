@@ -54,7 +54,9 @@ def main() -> int:
             status = ssh(
                 task["worker"],
                 f"test -f {shlex.quote(remote_task + '/microcell-status.json')} && "
-                f"cat {shlex.quote(remote_task + '/microcell-status.json')} || true",
+                f"cat {shlex.quote(remote_task + '/microcell-status.json')} || "
+                f"(test -f {shlex.quote(remote_task + '/preliminary-status.json')} && "
+                f"cat {shlex.quote(remote_task + '/preliminary-status.json')}) || true",
             )
             if not status.strip():
                 print(json.dumps({"task_id": task["task_id"], "status": "running"}))

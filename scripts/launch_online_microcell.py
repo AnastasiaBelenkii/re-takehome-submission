@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -55,6 +56,58 @@ def result_summary(output: Path, task_root: Path) -> dict[str, object]:
         "result_status": result.get("status"),
         "result_passed": bool(result.get("passed")),
         "result_calls_dispatched": (result.get("agent_metadata") or {}).get("calls_dispatched"),
+    }
+
+
+def preliminary_summary(output: Path, task_root: Path) -> dict[str, object] | None:
+    """Summarize the final agent checkpoint while exact judging continues."""
+    checkpoints = sorted(output.rglob("checkpoint.json"))
+    if len(checkpoints) != 1:
+        return None
+    path = checkpoints[0]
+    try:
+        payload = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    metadata = payload.get("metadata") or {}
+    # The agent may save provisional recovery checkpoints during its run. The
+    # complete scheduler metadata is written only after Agent.solve returns.
+    if metadata.get("scheduler") != "independent-track-v1":
+        return None
+    attempts = [
+        attempt
+        for track in (metadata.get("tracks") or {}).values()
+        for attempt in track.get("attempts", [])
+    ]
+    deterministic = metadata.get("deterministic") or {}
+    packet_events = metadata.get("packet_events") or []
+    return {
+        "schema_version": 1,
+        "status": "preliminary_agent_complete",
+        "final_judging_pending": True,
+        "checkpoint_path": str(path.relative_to(task_root)),
+        "scheduler": metadata.get("scheduler"),
+        "calls_attempted": metadata.get("calls_attempted"),
+        "calls_dispatched": metadata.get("calls_dispatched"),
+        "physical_requests": metadata.get("physical_requests"),
+        "dispatch_cutoff_reached": bool(metadata.get("dispatch_cutoff_reached")),
+        "structural_rejections": sum(
+            not bool(attempt.get("required_declarations_present")) for attempt in attempts
+        ),
+        "warm_lean_successes": (
+            sum(bool(attempt.get("lean_accepted")) for attempt in attempts)
+            + int(bool(deterministic.get("lean_accepted")))
+        ),
+        "fresh_verified_successes": (
+            sum(bool(attempt.get("accepted")) for attempt in attempts)
+            + int(bool(deterministic.get("accepted")))
+        ),
+        "packets_generated": len(packet_events),
+        "packets_used": sum("used_on_call" in event for event in packet_events),
+        "packets_pending": sum(
+            int(track.get("pending_peer_packets") or 0)
+            for track in (metadata.get("tracks") or {}).values()
+        ),
     }
 
 
@@ -142,10 +195,24 @@ def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
         "COLLAB_MAX_FREE_429_RETRIES": str(resources["max_cost_free_429_retries"]),
     })
     with (task_root / "run.log").open("ab", buffering=0) as log:
-        process = subprocess.run(
+        process = subprocess.Popen(
             argv, cwd=worktree, env=environment,
             stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
         )
+        preliminary_written = False
+        while process.poll() is None:
+            if not preliminary_written:
+                preliminary = preliminary_summary(output, task_root)
+                if preliminary is not None:
+                    preliminary["observed_at"] = now()
+                    atomic(task_root / "preliminary-status.json", preliminary)
+                    preliminary_written = True
+            time.sleep(0.25)
+        if not preliminary_written:
+            preliminary = preliminary_summary(output, task_root)
+            if preliminary is not None:
+                preliminary["observed_at"] = now()
+                atomic(task_root / "preliminary-status.json", preliminary)
     status = {
         "schema_version": 1,
         "task_id": task["task_id"],

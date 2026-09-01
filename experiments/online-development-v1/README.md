@@ -213,3 +213,21 @@ used one on GPT call 2, and left three queued. Therefore the current reciprocal
 strategies do not deliver reciprocal exposure under realistic latency skew.
 This is a mechanism-design problem to address only after the remaining shared
 substrate audit; it is not a reason to restore lockstep.
+
+### Preliminary result visibility
+
+Cold final Comparator remained a 89.7--114.5-second tail after the agent had
+already atomically written its final checkpoint. The development launcher now
+recognizes only a checkpoint containing complete `independent-track-v1`
+metadata and emits a compact `preliminary-status.json` while the unchanged
+Comparator continues. It reports request accounting, cutoff state, structural
+rejections, warm and fresh-verified successes, and packet generated/used/pending
+counts. It explicitly marks final judging as pending and cannot claim ultimate
+pass status. The collector surfaces this preliminary record for running cells,
+then replaces it with the ordinary final status once judging completes.
+
+This shortens time-to-information without changing the agent, conditions,
+worker, Comparator, or published evaluation command. Provisional recovery
+checkpoints are ignored. Focused tests report 22 passed; the full non-Docker
+suite reports 96 passed and 9 skipped, with only the already documented
+intentional frozen-manifest mismatch failing.

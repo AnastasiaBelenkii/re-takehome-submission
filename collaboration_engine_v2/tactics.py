@@ -35,12 +35,10 @@ def declaration_fingerprint(source: str) -> tuple[str, ...]:
 
 
 def declarations_unchanged(challenge: str, candidate: str) -> bool:
-    """Preserve every pristine declaration while allowing named helpers.
+    """Legacy source-text comparison retained for audit replay only.
 
-    Comparator grades the required named declarations; it does not require the
-    solution file to contain no additional declarations.  Reject a missing,
-    changed, or duplicate pristine declaration, but allow declarations whose
-    names are not present in the challenge.
+    This is deliberately not used as the live acceptance gate: definitionally
+    equal Lean types can have different source spellings.
     """
     required = declaration_fingerprint(challenge)
     proposed = declaration_fingerprint(candidate)
@@ -61,6 +59,41 @@ def declarations_unchanged(challenge: str, candidate: str) -> bool:
             )
         )
         if same_name != (fingerprint,):
+            return False
+    return True
+
+
+def required_declarations_present(challenge: str, candidate: str) -> bool:
+    """Require one declaration of every required name and compatible kind.
+
+    This is only a completeness guard. It does not pretend to decide whether
+    theorem statements are semantically equal; fresh Comparator verification
+    is authoritative for every warm-Lean success.
+    """
+    compatible_kinds = {
+        "theorem": {"theorem", "lemma"},
+        "lemma": {"theorem", "lemma"},
+        "def": {"def"},
+        "abbrev": {"abbrev"},
+        "opaque": {"opaque"},
+    }
+
+    def identity(fingerprint: str) -> tuple[str, str] | None:
+        match = re.match(
+            r"(theorem|lemma|def|abbrev|opaque)\s+"
+            r"([A-Za-z_][A-Za-z0-9_'.]*)\b",
+            fingerprint,
+        )
+        return (match.group(1), match.group(2)) if match else None
+
+    proposed = [identity(item) for item in declaration_fingerprint(candidate)]
+    for required_fingerprint in declaration_fingerprint(challenge):
+        required = identity(required_fingerprint)
+        if required is None:
+            return False
+        required_kind, required_name = required
+        same_name = [item for item in proposed if item and item[1] == required_name]
+        if len(same_name) != 1 or same_name[0][0] not in compatible_kinds[required_kind]:
             return False
     return True
 

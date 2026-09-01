@@ -14,6 +14,7 @@ from collaboration_engine_v2.tactics import (
     canonicalize_imports,
     declarations_unchanged,
     imports_unchanged,
+    required_declarations_present,
     tactic_candidate,
 )
 from re_harness import Problem
@@ -54,9 +55,20 @@ class Lean:
 
 
 class Services:
-    def __init__(self, responses, outcomes):
+    def __init__(self, responses, outcomes, verifications=None):
         self.llm, self.lean, self.checkpoints = LLM(responses), Lean(outcomes), []
+        self.verifications = list(verifications or [])
+        self.verified_sources = []
     def checkpoint(self, source, metadata=None): self.checkpoints.append((source, metadata or {}))
+    async def verify(self, source):
+        self.verified_sources.append(source)
+        passed = self.verifications.pop(0) if self.verifications else True
+        if isinstance(passed, BaseException): raise passed
+        return {
+            "passed": passed, "answer_shape_passed": passed,
+            "comparator_passed": passed, "comparator_timed_out": False,
+            "comparator_exit_code": 0 if passed else 1,
+        }
 
 
 def problem():
@@ -103,6 +115,23 @@ theorem p (n : ℕ) : n = n := by exact helper n
         challenge,
         helper.replace("lemma helper", "lemma p.helper"),
     )
+
+
+def test_live_structural_gate_ignores_semantic_source_spelling():
+    challenge = """import Mathlib
+theorem p (n : ℕ) (hn : 0 < n) : Finset.Icc 0 n = Finset.Icc 0 n := by sorry
+"""
+    equivalent_spelling = """import Mathlib
+open Finset
+theorem p (n : ℕ) (_ : 0 < n) : Icc 0 n = Icc 0 n := by rfl
+"""
+    changed_statement = equivalent_spelling.replace("Icc 0 n = Icc 0 n", "True")
+    missing = "import Mathlib\nlemma helper : True := by trivial\n"
+    duplicate = equivalent_spelling + equivalent_spelling
+    assert required_declarations_present(challenge, equivalent_spelling)
+    assert required_declarations_present(challenge, changed_statement)
+    assert not required_declarations_present(challenge, missing)
+    assert not required_declarations_present(challenge, duplicate)
 
 
 def test_import_contract_requires_exact_pristine_imports():
@@ -221,7 +250,7 @@ async def test_restart_prompt_requires_sketch_and_checkpoint_survives_regression
 
 @pytest.mark.asyncio
 async def test_contract_rejection_is_transactional_and_never_checkpointed_or_packetized():
-    invalid = "import Mathlib\ntheorem p : False := by trivial\n"
+    invalid = "import Mathlib\nlemma helper : False := by trivial\n"
     responses = {
         MODEL_A: [invalid, source("a1")],
         MODEL_B: [source("b0"), source("b1")],
@@ -238,20 +267,54 @@ async def test_contract_rejection_is_transactional_and_never_checkpointed_or_pac
     attempt = result.metadata["tracks"][MODEL_A]["attempts"][0]
     assert attempt["proposal_committed"] is False
     assert attempt["checkpoint_saved"] is False
-    assert attempt["declarations_unchanged"] is False
+    assert attempt["required_declarations_present"] is False
 
     # The next repair prompt shows the last admissible state (the pristine
     # challenge), while retaining a precise rejection diagnostic.
     second_a = [request for request in services.llm.requests if request["model"] == MODEL_A][1]
     prompt = second_a["messages"][1]["content"]
     assert "theorem p : True" in prompt
-    assert "theorem p : False" not in prompt
+    assert "lemma helper : False" not in prompt
     assert "Candidate contract rejected before Lean" in prompt
 
     # C1's packet source is also the last admissible candidate, not the rejected
     # proposal. Condition cadence itself is unchanged.
     second_b = [request for request in services.llm.requests if request["model"] == MODEL_B][1]
-    assert "theorem p : False" not in second_b["messages"][1]["content"]
+    assert "lemma helper : False" not in second_b["messages"][1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_warm_lean_success_is_provisional_until_fresh_verification_passes():
+    warm_success = source("warm-only")
+    services = Services(
+        {MODEL_A: [warm_success], MODEL_B: [source("b0")]},
+        [False, True, False],
+        verifications=[False],
+    )
+    result = await agent(NoCollaboration(), max_calls_per_model=1).solve(problem(), services)
+    attempt = result.metadata["tracks"][MODEL_A]["attempts"][0]
+    assert attempt["lean_accepted"] is True
+    assert attempt["compatibility_checked"] is True
+    assert attempt["compatibility_passed"] is False
+    assert attempt["accepted"] is False
+    assert attempt["checkpoint_saved"] is False
+    assert services.verified_sources == [canonicalize_imports(warm_success)]
+    assert result.metadata["calls_dispatched"] == 2
+
+
+@pytest.mark.asyncio
+async def test_freshly_verified_warm_success_can_stop_and_checkpoint():
+    success = source("verified")
+    services = Services(
+        {MODEL_A: [success], MODEL_B: [source("b0")]},
+        [False, True, False],
+        verifications=[True],
+    )
+    result = await agent(NoCollaboration(), max_calls_per_model=1).solve(problem(), services)
+    attempt = result.metadata["tracks"][MODEL_A]["attempts"][0]
+    assert attempt["accepted"] is True
+    assert attempt["compatibility_passed"] is True
+    assert attempt["checkpoint_saved"] is True
 
 
 @pytest.mark.asyncio
@@ -272,7 +335,7 @@ theorem p : True := by exact helper
     a_attempt = result.metadata["tracks"][MODEL_A]["attempts"][0]
     b_attempt = result.metadata["tracks"][MODEL_B]["attempts"][0]
     assert a_attempt["proposal_committed"] is True
-    assert a_attempt["declarations_unchanged"] is True
+    assert a_attempt["required_declarations_present"] is True
     assert b_attempt["proposal_committed"] is True
     assert b_attempt["original_imports_unchanged"] is False
     assert b_attempt["imports_normalized"] is True

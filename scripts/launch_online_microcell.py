@@ -40,6 +40,24 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def result_summary(output: Path, task_root: Path) -> dict[str, object]:
+    results = sorted(output.rglob("result.json"))
+    if len(results) != 1:
+        return {"result_artifact_count": len(results), "result_status": "missing_or_ambiguous"}
+    path = results[0]
+    try:
+        result = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"result_artifact_count": 1, "result_status": f"invalid: {type(exc).__name__}"}
+    return {
+        "result_artifact_count": 1,
+        "result_path": str(path.relative_to(task_root)),
+        "result_status": result.get("status"),
+        "result_passed": bool(result.get("passed")),
+        "result_calls_dispatched": (result.get("agent_metadata") or {}).get("calls_dispatched"),
+    }
+
+
 def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
     descriptor = json.loads(descriptor_path.read_text())
     task = descriptor["task"]
@@ -112,12 +130,14 @@ def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
             argv, cwd=worktree, env=environment,
             stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
         )
-    atomic(task_root / "microcell-status.json", {
+    status = {
         "schema_version": 1,
         "task_id": task["task_id"],
         "exit_code": process.returncode,
         "finished_at": now(),
-    })
+        **result_summary(output, task_root),
+    }
+    atomic(task_root / "microcell-status.json", status)
     return process.returncode
 
 

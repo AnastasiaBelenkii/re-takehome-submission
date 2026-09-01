@@ -19,6 +19,7 @@ from collaboration_engine_v2.tactics import (
     declaration_fingerprint,
     declarations_unchanged,
     imports_unchanged,
+    required_declarations_present,
 )
 
 
@@ -49,6 +50,8 @@ def classify(path: Path) -> dict:
         "new_declaration_gate_rejected": 0,
         "new_import_gate_rejected": 0,
         "new_contract_rejected": 0,
+        "structural_gate_rejected": 0,
+        "released_by_structural_gate": 0,
         "newly_admitted": 0,
         "newly_admitted_with_extra_declarations": 0,
     }
@@ -66,11 +69,14 @@ def classify(path: Path) -> dict:
         imports_ok = imports_unchanged(challenge, extracted)
         proposal = canonicalize_imports(extracted)
         declarations_ok = declarations_unchanged(challenge, proposal)
+        structural_ok = required_declarations_present(challenge, proposal)
         contract_ok = declarations_ok
         counts["old_gate_rejected"] += int(not old_ok)
         counts["new_declaration_gate_rejected"] += int(not declarations_ok)
         counts["new_import_gate_rejected"] += int(not imports_ok)
         counts["new_contract_rejected"] += int(not contract_ok)
+        counts["structural_gate_rejected"] += int(not structural_ok)
+        counts["released_by_structural_gate"] += int(not contract_ok and structural_ok)
         counts["newly_admitted"] += int(not old_ok and contract_ok)
         counts["newly_admitted_with_extra_declarations"] += int(
             not old_ok
@@ -96,7 +102,8 @@ def main() -> int:
             "calls", "outputs_with_text", "old_gate_rejected",
             "new_declaration_gate_rejected", "new_import_gate_rejected",
             "new_contract_rejected", "newly_admitted",
-            "newly_admitted_with_extra_declarations",
+            "newly_admitted_with_extra_declarations", "structural_gate_rejected",
+            "released_by_structural_gate",
         )
     }
     result = {
@@ -104,7 +111,8 @@ def main() -> int:
         "method": (
             "Recorded outputs re-extracted in original order and classified by old "
             "whole-list equality versus the current required-declaration contract after "
-            "deterministic import canonicalization. The import count records how often "
+            "deterministic import canonicalization, plus the proposed live structural "
+            "name-and-kind completeness guard. The import count records how often "
             "canonicalization changes the original response. "
             "This is not a counterfactual model trajectory."
         ),

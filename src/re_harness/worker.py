@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import importlib
 import inspect
 import json
@@ -11,6 +12,7 @@ import os
 import sys
 import time
 import traceback
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -73,6 +75,13 @@ async def _run(config: dict[str, Any]) -> int:
         timeout_s=int(config["lean_check_timeout_s"]),
     )
     challenge = config["challenge"]
+    spec = ProblemSpec(
+        id=config["problem_id"],
+        theorem_names=tuple(config["theorem_names"]),
+        definition_names=tuple(config["definition_names"]),
+        numeric_answer_names=tuple(config["numeric_answer_names"]),
+        metadata=config["problem_metadata"],
+    )
     solution_path = out_dir / "solution.lean"
     checkpoint_metadata: dict[str, Any] = {}
 
@@ -87,13 +96,46 @@ async def _run(config: dict[str, Any]) -> int:
         checkpoint_metadata.update(metadata)
         events.emit("checkpoint", source_bytes=len(source.encode("utf-8")), metadata=metadata)
 
+    async def verify_candidate(source: str) -> dict[str, Any]:
+        """Run the real answer-shape and Comparator checks in a fresh container."""
+        answer_ok, answer_errors = numeric_answers_are_literals(
+            source, spec.numeric_answer_names
+        )
+        verification_session = uuid.uuid4().hex
+        verdict = await asyncio.to_thread(
+            compare_solution,
+            image=config["lean_image"],
+            session_id=verification_session,
+            challenge=challenge,
+            solution=source,
+            spec=spec,
+            timeout_s=int(config["comparator_timeout_s"]),
+        )
+        result = {
+            "passed": bool(answer_ok and verdict.passed),
+            "answer_shape_passed": answer_ok,
+            "answer_shape_errors": answer_errors,
+            "comparator_passed": verdict.passed,
+            "comparator_exit_code": verdict.exit_code,
+            "comparator_timed_out": verdict.timed_out,
+            "comparator_duration_ms": verdict.duration_ms,
+        }
+        events.emit(
+            "candidate_verification",
+            source_sha256=hashlib.sha256(source.encode("utf-8")).hexdigest(),
+            result=result,
+        )
+        return result
+
     problem = Problem(
         id=config["problem_id"],
         description=config["description"],
         challenge=challenge,
         metadata=config["problem_metadata"],
     )
-    services = Services(llm=llm, lean=lean, checkpoint=checkpoint)
+    services = Services(
+        llm=llm, lean=lean, checkpoint=checkpoint, verify=verify_candidate
+    )
     started = time.monotonic()
     status = "failed"
     agent_error: dict[str, Any] | None = None
@@ -137,13 +179,6 @@ async def _run(config: dict[str, Any]) -> int:
     # Final verification never reuses the agent's environment. Stop the warm
     # REPL first, then launch Comparator in a separately created clean image.
     lean.close()
-    spec = ProblemSpec(
-        id=config["problem_id"],
-        theorem_names=tuple(config["theorem_names"]),
-        definition_names=tuple(config["definition_names"]),
-        numeric_answer_names=tuple(config["numeric_answer_names"]),
-        metadata=config["problem_metadata"],
-    )
     answer_ok, answer_errors = numeric_answers_are_literals(solution, spec.numeric_answer_names)
     comparator: dict[str, Any]
     try:

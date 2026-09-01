@@ -18,8 +18,8 @@ from .constants import DESIGN_ID, MODELS
 from .strategies import CollaborationStrategy, PeerPacket, TrackObservation, create_strategy
 from .tactics import (
     canonicalize_imports,
-    declarations_unchanged,
     imports_unchanged,
+    required_declarations_present,
     tactic_candidate,
 )
 
@@ -32,13 +32,16 @@ class AttemptRecord:
     phase: str
     candidate_sha256: str
     error_signature_sha256: str
+    lean_accepted: bool
     accepted: bool
+    compatibility_checked: bool
+    compatibility_passed: bool
     timed_out: bool
     raw_diagnostic_count: int
     diagnostic_excerpt: str
     checkpoint_saved: bool
     peer_packet_used: bool
-    declarations_unchanged: bool
+    required_declarations_present: bool
     original_imports_unchanged: bool
     imports_normalized: bool
     proposal_committed: bool
@@ -109,7 +112,12 @@ class CollaborationEngineV2Agent:
         best_model: str | None = None
         best_rank: tuple[int, int, int] | None = None
         packet_events: list[dict[str, Any]] = []
-        deterministic: dict[str, Any] = {"attempted": False, "accepted": False}
+        deterministic: dict[str, Any] = {
+            "attempted": False,
+            "lean_accepted": False,
+            "compatibility_checked": False,
+            "accepted": False,
+        }
 
         call_zero = tactic_candidate(problem.challenge)
         if call_zero is not None:
@@ -117,18 +125,32 @@ class CollaborationEngineV2Agent:
             deterministic["attempted"] = True
             deterministic["candidate_sha256"] = _sha256(_normalized_candidate(call_zero))
             check = await services.lean.check_file(call_zero)
+            verification = await self._verify_if_promising(call_zero, check.accepted, services)
+            accepted = bool(check.accepted and verification.get("passed"))
             deterministic.update({
-                "accepted": bool(check.accepted), "timed_out": bool(check.timed_out),
+                "lean_accepted": bool(check.accepted),
+                "compatibility_checked": bool(check.accepted),
+                "compatibility": verification,
+                "accepted": accepted, "timed_out": bool(check.timed_out),
                 "raw_diagnostic_count": len(check.messages),
             })
-            rank = (0 if check.accepted else 1, 1 if check.timed_out else 0, len(check.messages))
-            best_candidate, best_rank = call_zero, rank
-            services.checkpoint(call_zero, {
-                "design_id": DESIGN_ID, "condition": self.condition,
-                "phase": "deterministic_call_zero",
-                "candidate_sha256": deterministic["candidate_sha256"],
-            })
-            if check.accepted:
+            if not check.accepted:
+                rank = (1, 1 if check.timed_out else 0, len(check.messages))
+                best_candidate, best_rank = call_zero, rank
+                services.checkpoint(call_zero, {
+                    "design_id": DESIGN_ID, "condition": self.condition,
+                    "phase": "deterministic_call_zero",
+                    "candidate_sha256": deterministic["candidate_sha256"],
+                    "compatibility_status": "provisional_lean_failure",
+                })
+            if accepted:
+                best_candidate, best_rank = call_zero, (0, 0, 0)
+                services.checkpoint(call_zero, {
+                    "design_id": DESIGN_ID, "condition": self.condition,
+                    "phase": "deterministic_call_zero",
+                    "candidate_sha256": deterministic["candidate_sha256"],
+                    "compatibility_status": "fresh_comparator_passed",
+                })
                 return AgentResult(call_zero, self._metadata(
                     tracks, packet_events, deterministic, best_model=None,
                     best_rank=best_rank, rounds=0, cutoff_reached=False,
@@ -171,26 +193,37 @@ class CollaborationEngineV2Agent:
                 extracted = _extract_lean(response.content, fallback=track.candidate)
                 original_imports_ok = imports_unchanged(problem.challenge, extracted)
                 proposal = canonicalize_imports(extracted)
-                declarations_ok = declarations_unchanged(problem.challenge, proposal)
+                declarations_ok = required_declarations_present(problem.challenge, proposal)
                 imports_normalized = proposal != extracted
                 contract_ok = declarations_ok
+                compatibility: dict[str, Any] = {}
+                lean_accepted = False
                 if contract_ok:
                     check = await services.lean.check_file(proposal)
                     diagnostic_text, signature, raw_count = _diagnostics(check.messages, limit=self.diagnostic_chars)
-                    accepted, timed_out = bool(check.accepted), bool(check.timed_out)
+                    lean_accepted, timed_out = bool(check.accepted), bool(check.timed_out)
+                    compatibility = await self._verify_if_promising(
+                        proposal, lean_accepted, services
+                    )
+                    accepted = bool(lean_accepted and compatibility.get("passed"))
+                    if lean_accepted and not accepted:
+                        diagnostic_text = self._compatibility_diagnostic(compatibility)
+                        signature, raw_count = _sha256(diagnostic_text), 1
                     track.candidate = proposal
                 else:
                     violations = []
                     if not declarations_ok:
-                        violations.append("changed, removed, or duplicated a required declaration")
+                        violations.append(
+                            "missing, duplicated, or incompatibly declared a required name"
+                        )
                     diagnostic_text = (
                         "Candidate contract rejected before Lean: " + " and ".join(violations)
-                        + ". Return a complete file with the exact required declaration headers; "
+                        + ". Return a complete file containing every required declaration once; "
                           "additional helper declarations are allowed. Imports are normalized by "
                           "the harness."
                     )
                     signature, raw_count = _sha256(diagnostic_text), 1
-                    accepted = timed_out = False
+                    accepted = lean_accepted = timed_out = False
                 normalized = _normalized_candidate(proposal)
                 candidate_hash = _sha256(normalized)
                 repeated = candidate_hash in track.seen_candidates
@@ -200,13 +233,25 @@ class CollaborationEngineV2Agent:
                     1 if timed_out else 0,
                     raw_count,
                 )
-                checkpoint_saved = contract_ok and (best_rank is None or rank < best_rank)
+                checkpoint_saved = (
+                    contract_ok and not lean_accepted
+                    and (best_rank is None or rank < best_rank)
+                ) or accepted
                 if checkpoint_saved:
                     best_rank, best_candidate, best_model = rank, proposal, track.model
-                    services.checkpoint(best_candidate, self._checkpoint_metadata(track, round_number, candidate_hash))
+                    checkpoint_metadata = self._checkpoint_metadata(
+                        track, round_number, candidate_hash
+                    )
+                    checkpoint_metadata["compatibility_status"] = (
+                        "fresh_comparator_passed" if accepted
+                        else "provisional_lean_failure"
+                    )
+                    services.checkpoint(best_candidate, checkpoint_metadata)
                 record = AttemptRecord(
                     len(track.attempts) + 1, track.calls, round_number, phase,
-                    candidate_hash, signature, accepted, timed_out, raw_count,
+                    candidate_hash, signature, lean_accepted, accepted,
+                    lean_accepted, bool(compatibility.get("passed")),
+                    timed_out, raw_count,
                     diagnostic_text, checkpoint_saved, packet is not None,
                     declarations_ok, original_imports_ok, imports_normalized, contract_ok,
                 )
@@ -233,6 +278,40 @@ class CollaborationEngineV2Agent:
             tracks, packet_events, deterministic, best_model=best_model,
             best_rank=best_rank, rounds=round_number, cutoff_reached=cutoff_reached,
         ))
+
+    async def _verify_if_promising(
+        self, proposal: str, lean_accepted: bool, services: Services
+    ) -> dict[str, Any]:
+        if not lean_accepted:
+            return {}
+        try:
+            result = dict(await services.verify(proposal))
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            return {
+                "passed": False,
+                "verification_error": f"{type(exc).__name__}: {exc}"[:1000],
+            }
+        result["passed"] = bool(result.get("passed"))
+        return result
+
+    @staticmethod
+    def _compatibility_diagnostic(verification: dict[str, Any]) -> str:
+        if verification.get("verification_error"):
+            detail = verification["verification_error"]
+        else:
+            detail = (
+                f"answer_shape_passed={verification.get('answer_shape_passed')}; "
+                f"comparator_passed={verification.get('comparator_passed')}; "
+                f"comparator_timed_out={verification.get('comparator_timed_out')}; "
+                f"comparator_exit_code={verification.get('comparator_exit_code')}"
+            )
+        return (
+            "Warm Lean accepted this proposal, but fresh holdout-style verification "
+            f"did not: {detail}. Continue from it only as an untrusted local repair "
+            "state; it cannot stop the run or become a trusted checkpoint."
+        )
 
     async def _call(self, track: TrackState, problem: Problem, phase: str,
                     packet: PeerPacket | None, services: Services):

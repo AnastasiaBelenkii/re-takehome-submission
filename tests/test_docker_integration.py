@@ -185,6 +185,27 @@ def test_real_worker_scores_checkpoint_after_agent_crash(tmp_path):
     assert summary["total_points"] == 1
 
 
+def test_real_worker_exposes_fresh_candidate_verification(tmp_path):
+    problems = _one_problem_set(tmp_path)
+    out = tmp_path / "out-verification"
+    summary = run(
+        problems_dir=problems,
+        out_dir=out,
+        settings=HarnessSettings("", IMAGE or "", 1.0, 360, 1, 30, 180, 240),
+        agent="tests.fixture_agent:create_verification_agent",
+    )
+    result = json.loads((out / "p01_linear" / "result.json").read_text())
+    assert summary["total_points"] == 1
+    assert result["agent_metadata"]["warm_accepted"] is True
+    assert result["agent_metadata"]["warm_after_verification_accepted"] is True
+    assert result["agent_metadata"]["fresh_verification"]["passed"] is True
+    events = [
+        json.loads(line)
+        for line in (out / "p01_linear" / "events.jsonl").read_text().splitlines()
+    ]
+    assert sum(event["event"] == "candidate_verification" for event in events) == 1
+
+
 def test_outer_hard_timeout_preserves_checkpoint_and_cleans_container(tmp_path):
     problems = _one_problem_set(tmp_path)
     out = tmp_path / "out-timeout"

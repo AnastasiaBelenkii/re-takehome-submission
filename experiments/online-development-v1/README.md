@@ -261,3 +261,19 @@ the next mechanism comparisons. The reasoning-off canary remains a frozen
 efficiency/quality diagnostic and must not be pooled with medium-reasoning
 results. Medium parity is the current default, not a claim that an ablation has
 established it as optimal.
+
+Two end-to-end canaries close the integration loop. The superseded
+reasoning-off C0 cell completed six accounted calls and final judging without a
+harness error. Its three Qwen calls took 1.6--2.2 seconds and only 248--249
+tokens, but the last two candidates were byte-identical and all failed Lean.
+This is strong efficiency evidence and a warning against interpreting output
+completeness as proof quality.
+
+The current explicit-medium C0 cell requested `reasoning.effort=medium` from
+both endpoints and completed through the full worker, preliminary checkpoint,
+and final Comparator path. Qwen returned 3,557 tokens in 24.361 seconds; GPT-OSS
+returned 9,946 tokens in 208.053 seconds. Both stopped normally, reached Lean,
+and failed the hard problem. Both requests and $0.002647424 total spend were
+fully accounted, with no provider, harness, cutoff, or Comparator timeout.
+Reasoning-effort parity therefore does not imply latency or token parity. These
+cells validate invocation and compatibility, not relative proof quality.

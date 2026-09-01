@@ -50,3 +50,13 @@ unchanged C0/C1/C2 strategies, with six calls per model and a short declared
 development envelope. These nine cells are integration microcells, not an
 evaluation score estimate. Rolling analysis will report calls, gate outcomes,
 exact final verdict, checkpoint changes, packet exposure, cost, and latency.
+
+### Initial deployment canary
+
+The first nine-host launch at commit `16f65f6` made no model calls. Shared
+remote virtual environments contained editable-install pointers to older host
+checkouts, so `run.py` resolved stale `re_harness` modules and the v2 agent
+failed to import. Those cells are infrastructure canary failures, not stage-2
+outcomes. The launcher now sets `PYTHONPATH` explicitly to the frozen task
+checkout. Relaunch requires a remote import-origin preflight and distinct task
+IDs; failed artifacts remain immutable.

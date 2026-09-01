@@ -84,6 +84,9 @@ def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
     })
     environment = dict(os.environ)
     environment.update({
+        # Shared remote virtual environments may contain editable-install
+        # pointers to an older checkout. The frozen task worktree must win.
+        "PYTHONPATH": os.pathsep.join([str(worktree / "src"), str(worktree)]),
         "LEAN_IMAGE": LEAN_IMAGE,
         "VM_TIME_LIMIT_S": str(resources["outer_time_s"]),
         "VM_VERIFY_RESERVE_S": str(resources["verify_reserve_s"]),

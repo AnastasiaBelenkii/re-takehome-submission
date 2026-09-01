@@ -157,7 +157,8 @@ def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
     ]
     atomic(task_root / "provenance.json", {
         "schema_version": 1,
-        "experiment": "online-development-v1-stage2",
+        "experiment": descriptor.get("experiment", "online-development-v1-stage2"),
+        "design_id": "collaboration-engine-v2",
         "task": task,
         "git_commit": descriptor["git_commit"],
         "dispatched_at": descriptor["dispatched_at"],

@@ -9,6 +9,14 @@ This prospective development line starts from corrected-challenge commit
 changes only shared candidate-safety, verification, state, and deadline
 infrastructure.
 
+The preregistered Stage 3 replication is defined in
+`stage3-replication-v1.json`. It repeats the pre-audit shallow format on the
+current substrate: three replications of each condition on the six-problem
+core and one replication on each of the ten remaining corrected problems. The
+84 cells run as 28 matched C0/C1/C2 blocks across three independent worker
+trios. This experiment-specific use of workers 1--9 was explicitly authorized;
+worker 10 remains excluded.
+
 ## Common-substrate revision
 
 - Required challenge declarations must appear exactly once with unchanged

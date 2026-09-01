@@ -35,5 +35,54 @@ def declaration_fingerprint(source: str) -> tuple[str, ...]:
 
 
 def declarations_unchanged(challenge: str, candidate: str) -> bool:
-    return declaration_fingerprint(challenge) == declaration_fingerprint(candidate)
+    """Preserve every pristine declaration while allowing named helpers.
 
+    Comparator grades the required named declarations; it does not require the
+    solution file to contain no additional declarations.  Reject a missing,
+    changed, or duplicate pristine declaration, but allow declarations whose
+    names are not present in the challenge.
+    """
+    required = declaration_fingerprint(challenge)
+    proposed = declaration_fingerprint(candidate)
+    for fingerprint in required:
+        match = re.match(
+            r"(?:theorem|lemma|def|abbrev|opaque)\s+([A-Za-z_][A-Za-z0-9_'.]*)\b",
+            fingerprint,
+        )
+        if match is None:
+            return False
+        name = match.group(1)
+        same_name = tuple(
+            item for item in proposed
+            if re.match(
+                rf"(?:theorem|lemma|def|abbrev|opaque)\s+{re.escape(name)}"
+                r"(?![A-Za-z0-9_'.])",
+                item,
+            )
+        )
+        if same_name != (fingerprint,):
+            return False
+    return True
+
+
+def import_fingerprint(source: str) -> tuple[str, ...]:
+    """Return normalized top-level imports in source order."""
+    imports = []
+    for match in re.finditer(r"(?m)^\s*import\s+([^\n]+)$", source):
+        module_text = match.group(1).partition("--")[0]
+        imports.append(" ".join(module_text.split()))
+    return tuple(imports)
+
+
+def imports_unchanged(challenge: str, candidate: str) -> bool:
+    """Warm checking is sounder when final-file imports remain pristine."""
+    return import_fingerprint(challenge) == import_fingerprint(candidate)
+
+
+def canonicalize_imports(source: str) -> str:
+    """Use the warm REPL's real `Mathlib` context in the submitted file too."""
+    body = "\n".join(
+        line for line in source.splitlines()
+        if not line.lstrip().startswith("import ")
+    ).lstrip("\n")
+    return "import Mathlib\n\n" + body + ("\n" if body and not body.endswith("\n") else "")

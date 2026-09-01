@@ -49,6 +49,25 @@ def test_real_repl_valid_invalid_timeout_and_restart(tmp_path):
     asyncio.run(exercise())
 
 
+def test_real_repl_uses_pristine_import_environment(tmp_path):
+    async def exercise() -> None:
+        client = LeanClient(
+            image=IMAGE or "",
+            events=EventLogger(tmp_path / "events.jsonl", problem_id="narrow-imports"),
+            timeout_s=30,
+            base_imports="import Mathlib.Order.Bounds.Basic",
+        )
+        try:
+            valid = await client.check_file(
+                "import Mathlib.Order.Bounds.Basic\n\ntheorem narrow_ok : True := by trivial"
+            )
+            assert valid.accepted
+        finally:
+            client.close()
+
+    asyncio.run(exercise())
+
+
 def test_real_comparator_accepts_proof_and_rejects_statement_or_axiom():
     spec = ProblemSpec("smoke", ("smoke",), (), (), {})
     challenge = "import Mathlib\n\ntheorem smoke : True := by sorry\n"

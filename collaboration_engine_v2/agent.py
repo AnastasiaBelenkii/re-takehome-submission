@@ -16,7 +16,12 @@ from uplift_pilot.agent import _bounded_excerpt, _diagnostics, _normalized_candi
 
 from .constants import DESIGN_ID, MODELS
 from .strategies import CollaborationStrategy, PeerPacket, TrackObservation, create_strategy
-from .tactics import declarations_unchanged, tactic_candidate
+from .tactics import (
+    canonicalize_imports,
+    declarations_unchanged,
+    imports_unchanged,
+    tactic_candidate,
+)
 
 
 @dataclass
@@ -34,6 +39,9 @@ class AttemptRecord:
     checkpoint_saved: bool
     peer_packet_used: bool
     declarations_unchanged: bool
+    original_imports_unchanged: bool
+    imports_normalized: bool
+    proposal_committed: bool
     restart_reason: str | None = None
 
 
@@ -105,6 +113,7 @@ class CollaborationEngineV2Agent:
 
         call_zero = tactic_candidate(problem.challenge)
         if call_zero is not None:
+            call_zero = canonicalize_imports(call_zero)
             deterministic["attempted"] = True
             deterministic["candidate_sha256"] = _sha256(_normalized_candidate(call_zero))
             check = await services.lean.check_file(call_zero)
@@ -159,29 +168,47 @@ class CollaborationEngineV2Agent:
                     track.restart_pending = False
                     continue
 
-                track.candidate = _extract_lean(response.content, fallback=track.candidate)
-                immutable = declarations_unchanged(problem.challenge, track.candidate)
-                if immutable:
-                    check = await services.lean.check_file(track.candidate)
+                extracted = _extract_lean(response.content, fallback=track.candidate)
+                original_imports_ok = imports_unchanged(problem.challenge, extracted)
+                proposal = canonicalize_imports(extracted)
+                declarations_ok = declarations_unchanged(problem.challenge, proposal)
+                imports_normalized = proposal != extracted
+                contract_ok = declarations_ok
+                if contract_ok:
+                    check = await services.lean.check_file(proposal)
                     diagnostic_text, signature, raw_count = _diagnostics(check.messages, limit=self.diagnostic_chars)
                     accepted, timed_out = bool(check.accepted), bool(check.timed_out)
+                    track.candidate = proposal
                 else:
-                    diagnostic_text = "Candidate changed or removed a pristine declaration; it was not sent to Lean."
+                    violations = []
+                    if not declarations_ok:
+                        violations.append("changed, removed, or duplicated a required declaration")
+                    diagnostic_text = (
+                        "Candidate contract rejected before Lean: " + " and ".join(violations)
+                        + ". Return a complete file with the exact required declaration headers; "
+                          "additional helper declarations are allowed. Imports are normalized by "
+                          "the harness."
+                    )
                     signature, raw_count = _sha256(diagnostic_text), 1
                     accepted = timed_out = False
-                normalized = _normalized_candidate(track.candidate)
+                normalized = _normalized_candidate(proposal)
                 candidate_hash = _sha256(normalized)
                 repeated = candidate_hash in track.seen_candidates
                 track.seen_candidates.add(candidate_hash)
-                rank = (0 if accepted else 1, 1 if timed_out else 0, raw_count)
-                checkpoint_saved = best_rank is None or rank < best_rank
+                rank = (
+                    0 if accepted else (1 if contract_ok else 2),
+                    1 if timed_out else 0,
+                    raw_count,
+                )
+                checkpoint_saved = contract_ok and (best_rank is None or rank < best_rank)
                 if checkpoint_saved:
-                    best_rank, best_candidate, best_model = rank, track.candidate, track.model
+                    best_rank, best_candidate, best_model = rank, proposal, track.model
                     services.checkpoint(best_candidate, self._checkpoint_metadata(track, round_number, candidate_hash))
                 record = AttemptRecord(
                     len(track.attempts) + 1, track.calls, round_number, phase,
                     candidate_hash, signature, accepted, timed_out, raw_count,
-                    diagnostic_text, checkpoint_saved, packet is not None, immutable,
+                    diagnostic_text, checkpoint_saved, packet is not None,
+                    declarations_ok, original_imports_ok, imports_normalized, contract_ok,
                 )
                 track.attempts.append(record)
                 track.restart_pending = False
@@ -232,7 +259,9 @@ class CollaborationEngineV2Agent:
         system = [
             "Write one complete Lean 4 file using Mathlib.",
             "Return only Lean code, preferably in one ```lean block.",
+            "Use exactly one import line: `import Mathlib`.",
             "Preserve every declaration name, type/statement, and numeric answer from the pristine challenge.",
+            "You may add new helper lemmas or definitions with fresh names.",
             "Do not use sorry, admit, axioms, or unsafe escapes.",
         ]
         if phase in {"direct", "restart"}:
@@ -367,4 +396,3 @@ def create_agent() -> CollaborationEngineV2Agent:
         dispatch_cutoff_s=float(os.environ.get("COLLAB_DISPATCH_CUTOFF_S", "960")),
         max_cost_free_429_retries=_env_int("COLLAB_MAX_FREE_429_RETRIES", 2, 0, 5),
     )
-

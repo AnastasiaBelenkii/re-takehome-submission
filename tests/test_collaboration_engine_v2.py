@@ -10,7 +10,12 @@ from collaboration_engine_v2.agent import CollaborationEngineV2Agent
 from collaboration_engine_v2.constants import CONDITIONS
 from collaboration_engine_v2.experiment import build_queue, load_condition, load_resources
 from collaboration_engine_v2.strategies import NoCollaboration, ReciprocalCadence, TrackObservation
-from collaboration_engine_v2.tactics import declarations_unchanged, tactic_candidate
+from collaboration_engine_v2.tactics import (
+    canonicalize_imports,
+    declarations_unchanged,
+    imports_unchanged,
+    tactic_candidate,
+)
 from re_harness import Problem
 from re_harness.llm import CostFreeRateLimitError, LLMCallError
 from re_harness.models import MODEL_A, MODEL_B
@@ -78,6 +83,39 @@ def test_tactic_substitution_preserves_every_pristine_declaration():
         assert candidate is not None, item["id"]
         assert candidate != challenge
         assert declarations_unchanged(challenge, candidate), item["id"]
+
+
+def test_contract_allows_fresh_helpers_but_not_required_declaration_changes():
+    challenge = """import Mathlib
+theorem p (n : ℕ) : n = n := by
+  sorry
+"""
+    helper = """import Mathlib
+lemma helper (n : ℕ) : n = n := by rfl
+theorem p (n : ℕ) : n = n := by exact helper n
+"""
+    changed = helper.replace("theorem p (n : ℕ) : n = n", "theorem p (n : ℕ) : n + 0 = n")
+    duplicate = helper + "\ntheorem p (n : ℕ) : n = n := by rfl\n"
+    assert declarations_unchanged(challenge, helper)
+    assert not declarations_unchanged(challenge, changed)
+    assert not declarations_unchanged(challenge, duplicate)
+    assert declarations_unchanged(
+        challenge,
+        helper.replace("lemma helper", "lemma p.helper"),
+    )
+
+
+def test_import_contract_requires_exact_pristine_imports():
+    challenge = "import Mathlib.Order.Bounds.Basic\ntheorem p : True := by sorry\n"
+    same = "import   Mathlib.Order.Bounds.Basic -- same module\ntheorem p : True := by trivial\n"
+    broader = "import Mathlib\ntheorem p : True := by trivial\n"
+    missing = "import Mathlib.This.Does.Not.Exist\ntheorem p : True := by trivial\n"
+    assert imports_unchanged(challenge, same)
+    assert not imports_unchanged(challenge, broader)
+    assert not imports_unchanged(challenge, missing)
+    normalized = canonicalize_imports(missing)
+    assert normalized.startswith("import Mathlib\n\n")
+    assert "Mathlib.This.Does.Not.Exist" not in normalized
 
 
 def test_manifests_only_vary_condition_and_strategy_and_queue_is_frozen():
@@ -180,3 +218,61 @@ async def test_restart_prompt_requires_sketch_and_checkpoint_survives_regression
     assert "3-8 line proof sketch" in restart["messages"][0]["content"]
     assert services.checkpoints
 
+
+@pytest.mark.asyncio
+async def test_contract_rejection_is_transactional_and_never_checkpointed_or_packetized():
+    invalid = "import Mathlib\ntheorem p : False := by trivial\n"
+    responses = {
+        MODEL_A: [invalid, source("a1")],
+        MODEL_B: [source("b0"), source("b1")],
+    }
+    services = Services(responses, [False] * 4)
+    result = await agent(
+        ReciprocalCadence(packet_chars=6000, repeat=False), max_calls_per_model=2
+    ).solve(problem(), services)
+
+    # Call-zero and the three admissible proposals reach Lean; the rejected
+    # proposal does not. It also cannot displace the call-zero checkpoint.
+    assert invalid not in services.lean.sources
+    assert all(checkpoint[0] != invalid for checkpoint in services.checkpoints)
+    attempt = result.metadata["tracks"][MODEL_A]["attempts"][0]
+    assert attempt["proposal_committed"] is False
+    assert attempt["checkpoint_saved"] is False
+    assert attempt["declarations_unchanged"] is False
+
+    # The next repair prompt shows the last admissible state (the pristine
+    # challenge), while retaining a precise rejection diagnostic.
+    second_a = [request for request in services.llm.requests if request["model"] == MODEL_A][1]
+    prompt = second_a["messages"][1]["content"]
+    assert "theorem p : True" in prompt
+    assert "theorem p : False" not in prompt
+    assert "Candidate contract rejected before Lean" in prompt
+
+    # C1's packet source is also the last admissible candidate, not the rejected
+    # proposal. Condition cadence itself is unchanged.
+    second_b = [request for request in services.llm.requests if request["model"] == MODEL_B][1]
+    assert "theorem p : False" not in second_b["messages"][1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_helper_proposal_and_normalized_changed_import_reach_lean():
+    helper = """import Mathlib
+lemma helper : True := by trivial
+theorem p : True := by exact helper
+"""
+    changed_import = "import Mathlib.This.Does.Not.Exist\ntheorem p : True := by trivial\n"
+    services = Services(
+        {MODEL_A: [helper], MODEL_B: [changed_import]},
+        [False, False, False],
+    )
+    result = await agent(NoCollaboration(), max_calls_per_model=1).solve(problem(), services)
+    assert canonicalize_imports(helper) in services.lean.sources
+    assert changed_import not in services.lean.sources
+    assert canonicalize_imports(changed_import) in services.lean.sources
+    a_attempt = result.metadata["tracks"][MODEL_A]["attempts"][0]
+    b_attempt = result.metadata["tracks"][MODEL_B]["attempts"][0]
+    assert a_attempt["proposal_committed"] is True
+    assert a_attempt["declarations_unchanged"] is True
+    assert b_attempt["proposal_committed"] is True
+    assert b_attempt["original_imports_unchanged"] is False
+    assert b_attempt["imports_normalized"] is True

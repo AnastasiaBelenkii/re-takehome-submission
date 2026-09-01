@@ -49,6 +49,15 @@ def _models_used(events_path: Path) -> list[str]:
     return sorted(model for model in models if isinstance(model, str))
 
 
+def _verification_reserve(config: dict[str, Any]) -> float:
+    """Reserve final-verifier time with margin, bounded for short canaries."""
+    desired = max(
+        float(config["verify_reserve_s"]),
+        float(config["comparator_timeout_s"]) + 30.0,
+    )
+    return min(desired, float(config["time_limit_s"]) * 0.25)
+
+
 async def _run(config: dict[str, Any]) -> int:
     out_dir = Path(config["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -89,7 +98,10 @@ async def _run(config: dict[str, Any]) -> int:
     status = "failed"
     agent_error: dict[str, Any] | None = None
     agent_metadata: dict[str, Any] = {}
-    reserve = min(float(config["verify_reserve_s"]), float(config["time_limit_s"]) * 0.25)
+    # Preserve enough time for the configured Comparator plus container
+    # shutdown/serialization margin. Short development runs cap the reserve at
+    # 25% of their wall limit; full judging runs receive the complete margin.
+    reserve = _verification_reserve(config)
     agent_time = max(1.0, float(config["time_limit_s"]) - reserve)
     events.emit("problem_started", agent=config["agent"], agent_time_limit_s=agent_time)
     try:

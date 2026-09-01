@@ -5,6 +5,7 @@ from datetime import datetime
 
 from re_harness.config import HarnessSettings
 from re_harness.runner import resolve_output_dir, run
+from re_harness.worker import _verification_reserve
 
 
 def _make_set(root):
@@ -87,3 +88,21 @@ def test_resume_latest_finds_renamed_nested_run(tmp_path):
     assert agent_name == "baseline"
     assert run_name == "qwen/qwen3.5-flash-02-23"
     assert resume is True
+
+
+def test_verification_reserve_covers_comparator_and_margin_on_judging_limit():
+    config = {
+        "verify_reserve_s": 120,
+        "comparator_timeout_s": 180,
+        "time_limit_s": 28800,
+    }
+    assert _verification_reserve(config) == 210
+
+
+def test_verification_reserve_is_bounded_for_short_canaries():
+    config = {
+        "verify_reserve_s": 240,
+        "comparator_timeout_s": 180,
+        "time_limit_s": 600,
+    }
+    assert _verification_reserve(config) == 150

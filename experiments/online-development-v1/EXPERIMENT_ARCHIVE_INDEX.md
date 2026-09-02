@@ -1,5 +1,44 @@
 # Consolidated experiment archive index
 
+## Latest Stage 3 supplemental snapshot
+
+The completed September 2 matched C0+/C1+ wave and its offline packet-candidate
+rechecks are consolidated at:
+
+```text
+takehome-worker-9:/opt/human-loop-archive/salvage-fill-reserve-v2-stage3-matched-v1-archive-20260902T204129Z
+```
+
+This is an additive snapshot. The source artifacts remain unchanged on workers
+1–8, and the September 1 archive described below was not modified. Its layout
+is:
+
+```text
+salvage-fill-reserve-v2-stage3-matched-v1-archive-20260902T204129Z/
+├── SHA256SUMS
+└── hosts/
+    ├── takehome-worker-1/
+    │   ├── salvage-fill-reserve-v2-stage3-matched-v1-20260902T071500Z/
+    │   └── packet-candidate-recheck-20260902T1600Z/
+    ├── ...
+    └── takehome-worker-8/
+```
+
+The snapshot contains all 56 paid Stage 3 result files and transcripts: seven
+cells from each source worker. It also preserves the complete offline recheck
+audit trail, including ten uniquely recovered packet-conditioned candidates
+that passed Comparator and the unsuccessful recovery-attempt records. The
+`SHA256SUMS` manifest covers 1,536 copied files (90,594,434 source bytes).
+
+After transfer, each source worker and corresponding archive namespace had
+identical file counts, byte counts, and aggregate content hashes. A subsequent
+`sha256sum -c SHA256SUMS` check passed for the complete archive. No `.env`,
+credential-named, or secret-named file was present in either collected source
+namespace.
+
+For this snapshot, worker 9 is the archive host only; this does not establish a
+standing worker allocation. Worker 10 was not accessed or included.
+
 ## Canonical location
 
 As of 2026-09-01, the canonical human-controlled snapshot of experimental
@@ -9,9 +48,9 @@ artifacts from all ten droplets is:
 takehome-worker-9:/opt/human-loop-archive/experimental-results-20260901T022218Z
 ```
 
-Worker 9 is reserved for human-directed canaries, debugging, judge checks, and
-archive access. Worker 10 is the machine-controlled Humanize coordinator and is
-not the canonical archive host.
+Worker 9 was selected as the archive host for this snapshot. There is no
+standing worker allocation. Worker 10 is not the canonical archive host; its
+inactive legacy Humanize installation is outside the archive scope.
 
 The snapshot is additive and non-mutating: source results remain on their
 original workers. A partial, non-canonical copy created before the allocation
@@ -85,6 +124,20 @@ result, summary, log, provenance, condition, or run metadata files from the
 selected roots. No source artifact was deleted after copying.
 
 ## Retrieval examples
+
+List every final result in the latest matched wave:
+
+```bash
+ssh takehome-worker-9 \
+  "find /opt/human-loop-archive/salvage-fill-reserve-v2-stage3-matched-v1-archive-20260902T204129Z/hosts -path '*/salvage-fill-reserve-v2-stage3-matched-v1-20260902T071500Z/tasks/*/outputs/agent/*/*/result.json' -print"
+```
+
+Verify the latest supplemental snapshot:
+
+```bash
+ssh takehome-worker-9 \
+  "cd /opt/human-loop-archive/salvage-fill-reserve-v2-stage3-matched-v1-archive-20260902T204129Z && sha256sum -c SHA256SUMS"
+```
 
 List every transcript associated with worker 7:
 

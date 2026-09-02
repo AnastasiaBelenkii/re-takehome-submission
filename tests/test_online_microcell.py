@@ -4,11 +4,18 @@ import json
 
 import pytest
 
+from scripts.dispatch_online_stage2 import validate_worker_allocation
 from scripts.launch_online_microcell import (
     preliminary_summary,
     result_summary,
     validate_api_key,
 )
+
+
+def test_paid_plan_accepts_current_workers_and_rejects_malformed_hosts():
+    validate_worker_allocation({"tasks": [{"worker": "takehome-worker-6"}]})
+    with pytest.raises(ValueError, match="invalid worker"):
+        validate_worker_allocation({"tasks": [{"worker": "takehome-worker-six"}]})
 
 
 def test_microcell_status_classifies_scientific_result_not_only_process_exit(tmp_path):

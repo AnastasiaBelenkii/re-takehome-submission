@@ -91,6 +91,7 @@ def main() -> int:
     for task in plan["tasks"]:
         descriptor = {
             "schema_version": 1,
+            "experiment": plan.get("experiment", "online-development-v1-stage2"),
             "git_commit": checkout_commit,
             "dispatched_at": now(),
             "worker": task["worker"],

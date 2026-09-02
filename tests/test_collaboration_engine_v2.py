@@ -161,6 +161,22 @@ def test_sorrifier_fails_closed_on_statement_and_unpositioned_errors():
     }]) == ()
 
 
+def test_sorrifier_does_not_count_comments_as_verified_progress():
+    candidate = """import Mathlib
+theorem p : True := by
+  -- The library surely contains the exact result.
+  -- Reuse it to finish immediately.
+  exact Missing.exact_result
+"""
+    messages = [{
+        "severity": "error", "pos": {"line": 5, "column": 8},
+        "data": "Unknown constant `Missing.exact_result`",
+    }]
+    proposals = propose_sorrifications(candidate, messages)
+    assert proposals
+    assert all(proposal.retained_lines == 0 for proposal in proposals)
+
+
 @pytest.mark.asyncio
 async def test_zero_retention_sorrification_is_not_used_as_partial_state():
     broken = "import Mathlib\ntheorem p : True := by\n  exact missing\n"
@@ -281,12 +297,15 @@ async def test_fast_track_reserve_waits_for_and_consumes_fill_packet():
             ),)
 
     responses = {
-        MODEL_A: [source("a0"), source("a1"), source("a2")],
-        MODEL_B: [(0.02, source("b0")), (0.02, source("b1")), (0.02, source("b2"))],
+        MODEL_A: [source("a0"), (0.03, source("a1")), source("a2"), source("a3")],
+        MODEL_B: [
+            (0.02, source("b0")), (0.02, source("b1")),
+            (0.02, source("b2")), (0.02, source("b3")),
+        ],
     }
-    services = Services(responses, [False] * 7)
+    services = Services(responses, [False] * 9)
     result = await agent(
-        PacketAfterSlowObservation(), max_calls_per_model=3,
+        PacketAfterSlowObservation(), max_calls_per_model=4,
         fast_track_reserved_calls=1, dispatch_cutoff_s=10,
         reserve_release_margin_s=0.1,
     ).solve(problem(), services)
@@ -294,16 +313,29 @@ async def test_fast_track_reserve_waits_for_and_consumes_fill_packet():
     qwen_requests = [
         request for request in services.llm.requests if request["model"] == MODEL_A
     ]
-    assert len(qwen_requests) == 3
-    fill_prompt = qwen_requests[-1]["messages"][1]["content"]
+    assert len(qwen_requests) == 4
+    fill_request = next(
+        request for request in qwen_requests
+        if "fill its residual holes now" in request["messages"][1]["content"]
+    )
+    fill_prompt = fill_request["messages"][1]["content"]
+    fill_system = fill_request["messages"][0]["content"]
+    assert "phase: peer_fill" in fill_prompt
     assert "fill its residual holes now" in fill_prompt
     assert "Do not critique" in fill_prompt
     assert "Critically evaluate" not in fill_prompt
+    assert "Abandon the prior trajectory" not in fill_system
     event = result.metadata["packet_events"][0]
     assert event["used_on_call"] == 3
     assert event["delivery_delay_s"] >= 0
     assert result.metadata["tracks"][MODEL_A]["peer_packets_consumed"] == 1
-    assert result.metadata["tracks"][MODEL_A]["reserve_release_reason"] is None
+    # Consuming an early packet does not permanently unlock the final reserve;
+    # with no second packet, it releases only after the peer exhausts.
+    dispatch_models = [request["model"] for request in services.llm.requests]
+    assert max(index for index, model in enumerate(dispatch_models) if model == MODEL_A) > max(
+        index for index, model in enumerate(dispatch_models) if model == MODEL_B
+    )
+    assert result.metadata["tracks"][MODEL_A]["reserve_release_reason"] == "peer_exhausted"
 
 
 @pytest.mark.asyncio

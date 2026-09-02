@@ -232,7 +232,6 @@ class CollaborationEngineV2Agent:
                 and self.max_calls_per_model is not None
                 and track.calls >= self.max_calls_per_model - self.fast_track_reserved_calls
                 and not track.pending_packets
-                and track.peer_packets_consumed == 0
             ):
                 peer = tracks[MODELS[1]]
                 deadline_release = (
@@ -260,6 +259,11 @@ class CollaborationEngineV2Agent:
             packet_event: dict[str, Any] | None = None
             if track.pending_packets:
                 packet, packet_event = track.pending_packets.pop(0)
+                if packet.kind == "progress-fill-event-latest-v2":
+                    # A peer fill is its own task. In particular, do not carry
+                    # a local restart instruction that tells the receiver to
+                    # abandon the compiling skeleton it is about to receive.
+                    phase = "peer_fill"
             track.calls += 1
             call_round = track.calls
             if packet_event is not None:

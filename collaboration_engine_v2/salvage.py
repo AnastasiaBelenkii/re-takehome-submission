@@ -108,6 +108,39 @@ def _render_span(lines: list[str], *, start: int, stop: int) -> str:
     return "\n".join(answer).rstrip() + "\n"
 
 
+def _executable_line_count(
+    lines: list[str], *, start: int, stop: int,
+    excluded_start: int | None = None, excluded_stop: int | None = None,
+) -> int:
+    """Count retained Lean proof lines, excluding prose and replaced spans."""
+
+    count = 0
+    in_block_comment = False
+    for index in range(start, stop):
+        if (
+            excluded_start is not None and excluded_stop is not None
+            and excluded_start <= index <= excluded_stop
+        ):
+            continue
+        text = lines[index].strip()
+        if in_block_comment:
+            if "-/" in text:
+                text = text.split("-/", 1)[1].strip()
+                in_block_comment = False
+            else:
+                continue
+        while text.startswith("/-"):
+            if "-/" not in text[2:]:
+                in_block_comment = True
+                text = ""
+                break
+            text = text.split("-/", 1)[1].strip()
+        text = text.split("--", 1)[0].strip()
+        if text and text not in {"·", "{", "}"} and not _SORRY.search(text):
+            count += 1
+    return count
+
+
 def propose_sorrifications(
     source: str,
     messages: Sequence[dict[str, Any]],
@@ -154,7 +187,10 @@ def propose_sorrifications(
             mode="diagnostic_span",
             declaration_line=start + 1,
             error_line=error_index + 1,
-            retained_lines=max(0, (end - body_line - 1) - (span_end - error_index + 1)),
+            retained_lines=_executable_line_count(
+                lines, start=body_line + 1, stop=end,
+                excluded_start=error_index, excluded_stop=span_end,
+            ),
             residual_goals=residual,
         )
         if span.retained_lines > 0:
@@ -167,7 +203,9 @@ def propose_sorrifications(
             mode="failing_suffix",
             declaration_line=start + 1,
             error_line=error_index + 1,
-            retained_lines=prefix_keep - body_line,
+            retained_lines=_executable_line_count(
+                lines, start=body_line + 1, stop=prefix_keep + 1
+            ),
             residual_goals=residual,
         )
         if not answer or suffix.source != answer[-1].source:

@@ -147,12 +147,21 @@ class ProgressPackets:
         ),)
 
 
+class ProgressFillPackets(ProgressPackets):
+    """Progress packets whose recipient is assigned the residual fill task."""
+
+    strategy_id = "progress-fill-event-latest-v2"
+
+
 def create_strategy(strategy_id: str, *, packet_chars: int, models: Sequence[str] = ()) -> CollaborationStrategy:
     factories = {
         "none": lambda: NoCollaboration(),
         "reciprocal-once-v1": lambda: ReciprocalCadence(packet_chars=packet_chars, repeat=False),
         "reciprocal-every-eligible-v1": lambda: ReciprocalCadence(packet_chars=packet_chars, repeat=True),
         "progress-event-latest-v1": lambda: ProgressPackets(packet_chars=packet_chars, models=models),
+        "progress-fill-event-latest-v2": lambda: ProgressFillPackets(
+            packet_chars=packet_chars, models=models
+        ),
     }
     try:
         return factories[strategy_id]()

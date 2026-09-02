@@ -17,7 +17,7 @@ from collaboration_engine_v2.strategies import (
     TrackObservation,
 )
 from collaboration_engine_v2.salvage import contains_sorry, propose_sorrifications
-from collaboration_engine_v2.strategies import ProgressPackets
+from collaboration_engine_v2.strategies import ProgressFillPackets, ProgressPackets
 from collaboration_engine_v2.tactics import (
     canonicalize_imports,
     declarations_unchanged,
@@ -258,6 +258,72 @@ def test_progress_packet_queue_is_latest_wins_and_marks_stale_event():
     assert tracks[MODEL_B].pending_packets[0][0] == latest
     assert events[0]["replaced_before_use"] is True
     assert "replaced_before_use" not in events[1]
+
+
+@pytest.mark.asyncio
+async def test_fast_track_reserve_waits_for_and_consumes_fill_packet():
+    class PacketAfterSlowObservation:
+        strategy_id = "progress-fill-event-latest-v2"
+
+        def __init__(self):
+            self.sent = False
+
+        def after_round(self, _observations):
+            return ()
+
+        def after_observation(self, observation):
+            if observation.model != MODEL_B or self.sent:
+                return ()
+            self.sent = True
+            return (PeerPacket(
+                MODEL_A, MODEL_B, "Compiling skeleton:\n" + problem().challenge,
+                self.strategy_id,
+            ),)
+
+    responses = {
+        MODEL_A: [source("a0"), source("a1"), source("a2")],
+        MODEL_B: [(0.02, source("b0")), (0.02, source("b1")), (0.02, source("b2"))],
+    }
+    services = Services(responses, [False] * 7)
+    result = await agent(
+        PacketAfterSlowObservation(), max_calls_per_model=3,
+        fast_track_reserved_calls=1, dispatch_cutoff_s=10,
+        reserve_release_margin_s=0.1,
+    ).solve(problem(), services)
+
+    qwen_requests = [
+        request for request in services.llm.requests if request["model"] == MODEL_A
+    ]
+    assert len(qwen_requests) == 3
+    fill_prompt = qwen_requests[-1]["messages"][1]["content"]
+    assert "fill its residual holes now" in fill_prompt
+    assert "Do not critique" in fill_prompt
+    assert "Critically evaluate" not in fill_prompt
+    event = result.metadata["packet_events"][0]
+    assert event["used_on_call"] == 3
+    assert event["delivery_delay_s"] >= 0
+    assert result.metadata["tracks"][MODEL_A]["peer_packets_consumed"] == 1
+    assert result.metadata["tracks"][MODEL_A]["reserve_release_reason"] is None
+
+
+@pytest.mark.asyncio
+async def test_idle_control_reserve_releases_only_after_peer_exhausts():
+    responses = {
+        MODEL_A: [source("a0"), source("a1"), source("a2")],
+        MODEL_B: [(0.01, source("b0")), (0.01, source("b1")), (0.01, source("b2"))],
+    }
+    services = Services(responses, [False] * 7)
+    result = await agent(
+        NoCollaboration(), max_calls_per_model=3,
+        fast_track_reserved_calls=1, dispatch_cutoff_s=10,
+        reserve_release_margin_s=0.1,
+    ).solve(problem(), services)
+
+    dispatch_models = [request["model"] for request in services.llm.requests]
+    assert max(index for index, model in enumerate(dispatch_models) if model == MODEL_A) > max(
+        index for index, model in enumerate(dispatch_models) if model == MODEL_B
+    )
+    assert result.metadata["tracks"][MODEL_A]["reserve_release_reason"] == "peer_exhausted"
 
 
 def test_tactic_substitution_preserves_every_pristine_declaration():

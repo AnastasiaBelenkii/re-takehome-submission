@@ -81,6 +81,8 @@ class TrackState:
     retry_events: list[dict[str, Any]] = field(default_factory=list)
     pending_packets: list[tuple[PeerPacket, dict[str, Any]]] = field(default_factory=list)
     salvage_events: list[dict[str, Any]] = field(default_factory=list)
+    peer_packets_consumed: int = 0
+    reserve_release_reason: str | None = None
     active: bool = True
 
 
@@ -94,6 +96,8 @@ class CollaborationEngineV2Agent:
         max_cost_free_429_retries: int = 2, retry_backoff_s: float = 1.0,
         enable_salvage: bool = False, salvage_check_timeout_s: int = 2,
         model_call_wall_timeout_s: float = 420,
+        fast_track_reserved_calls: int = 0,
+        reserve_release_margin_s: float = 120,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         if max_calls_per_model is not None and not 1 <= max_calls_per_model <= 25:
@@ -106,6 +110,14 @@ class CollaborationEngineV2Agent:
             raise ValueError("dispatch_cutoff_s must be positive")
         if not math.isfinite(model_call_wall_timeout_s) or model_call_wall_timeout_s <= 0:
             raise ValueError("model_call_wall_timeout_s must be positive")
+        if not 0 <= fast_track_reserved_calls <= 4:
+            raise ValueError("fast_track_reserved_calls must be between 0 and 4")
+        if max_calls_per_model is not None and fast_track_reserved_calls >= max_calls_per_model:
+            raise ValueError("fast_track_reserved_calls must be below the call ceiling")
+        if not math.isfinite(reserve_release_margin_s) or reserve_release_margin_s <= 0:
+            raise ValueError("reserve_release_margin_s must be positive")
+        if fast_track_reserved_calls and reserve_release_margin_s >= dispatch_cutoff_s:
+            raise ValueError("reserve_release_margin_s must be below dispatch_cutoff_s")
         self.strategy = strategy
         self.condition = condition
         self.max_calls_per_model = max_calls_per_model
@@ -122,6 +134,8 @@ class CollaborationEngineV2Agent:
         self.enable_salvage = enable_salvage
         self.salvage_check_timeout_s = salvage_check_timeout_s
         self.model_call_wall_timeout_s = model_call_wall_timeout_s
+        self.fast_track_reserved_calls = fast_track_reserved_calls
+        self.reserve_release_margin_s = reserve_release_margin_s
         self.clock = clock
 
     def _has_capacity(self, track: TrackState) -> bool:
@@ -212,6 +226,30 @@ class CollaborationEngineV2Agent:
             nonlocal cutoff_reached
             if not self._has_capacity(track):
                 return False
+            if (
+                track.model == MODELS[0]
+                and self.fast_track_reserved_calls
+                and self.max_calls_per_model is not None
+                and track.calls >= self.max_calls_per_model - self.fast_track_reserved_calls
+                and not track.pending_packets
+                and track.peer_packets_consumed == 0
+            ):
+                peer = tracks[MODELS[1]]
+                deadline_release = (
+                    self.clock() - started
+                    >= self.dispatch_cutoff_s - self.reserve_release_margin_s
+                )
+                peer_in_flight = any(
+                    pending_value[0].model == peer.model
+                    for pending_value in pending.values()
+                )
+                peer_exhausted = not self._has_capacity(peer) and not peer_in_flight
+                if not deadline_release and not peer_exhausted:
+                    return False
+                if track.reserve_release_reason is None:
+                    track.reserve_release_reason = (
+                        "deadline_margin" if deadline_release else "peer_exhausted"
+                    )
             if check_cutoff and self.clock() - started >= self.dispatch_cutoff_s:
                 cutoff_reached = True
                 return False
@@ -225,8 +263,14 @@ class CollaborationEngineV2Agent:
             track.calls += 1
             call_round = track.calls
             if packet_event is not None:
+                track.peer_packets_consumed += 1
                 packet_event["used_on_call"] = track.calls
                 packet_event["used_on_round"] = call_round
+                packet_event["used_at_s"] = round(self.clock() - started, 6)
+                if "produced_at_s" in packet_event:
+                    packet_event["delivery_delay_s"] = round(
+                        packet_event["used_at_s"] - packet_event["produced_at_s"], 6
+                    )
             task = asyncio.create_task(
                 self._call_with_deadline(track, problem, phase, packet, services)
             )
@@ -453,7 +497,7 @@ class CollaborationEngineV2Agent:
                 immediate_packets = tuple(self.strategy.after_observation(observation))
                 self._install_packets(
                     immediate_packets, tracks, call_round, packet_events,
-                    latest_wins=True,
+                    latest_wins=True, elapsed_s=self.clock() - started,
                 )
                 verified_success = verified_success or accepted
                 if not accepted:
@@ -496,8 +540,20 @@ class CollaborationEngineV2Agent:
                 if self.clock() - started >= self.dispatch_cutoff_s:
                     cutoff_reached = True
                 else:
-                    for track in ready_to_schedule:
-                        schedule(track, check_cutoff=False)
+                    busy_models = {value[0].model for value in pending.values()}
+                    for model in dict.fromkeys(track.model for track in ready_to_schedule):
+                        track = tracks[model]
+                        if track.model not in busy_models:
+                            schedule(track, check_cutoff=False)
+
+            # A track held at its reserve is not attached to a pending task.
+            # Reconsider it whenever its peer completes and may have produced a
+            # packet, exhausted its calls, or advanced the deadline clock.
+            if not verified_success and self.clock() - started < self.dispatch_cutoff_s:
+                busy_models = {value[0].model for value in pending.values()}
+                for model in MODELS:
+                    if model not in busy_models:
+                        schedule(tracks[model], check_cutoff=False)
 
         round_number = max((track.calls for track in tracks.values()), default=0)
 
@@ -694,7 +750,15 @@ class CollaborationEngineV2Agent:
         if track.failure_memory:
             user.extend(["", "Bounded failed-approach memory (do not repeat these strategies):", "```text", "\n".join(track.failure_memory), "```"])
         if packet is not None:
-            user.extend(["", "Evidence from an independent solver. Critically evaluate it; reuse only what helps:", "```text", packet.content, "```"])
+            if packet.kind == "progress-fill-event-latest-v2":
+                user.extend([
+                    "",
+                    "Compiler-validated peer skeleton: fill its residual holes now.",
+                    "Preserve its compiling declarations and helper proofs. Replace every explicit `sorry` with complete Lean code; return one complete file without `sorry`. Do not critique, summarize, or restart from scratch unless Lean diagnostics prove the skeleton unusable.",
+                    "```text", packet.content, "```",
+                ])
+            else:
+                user.extend(["", "Evidence from an independent solver. Critically evaluate it; reuse only what helps:", "```text", packet.content, "```"])
         return [{"role": "system", "content": "\n".join(system)}, {"role": "user", "content": "\n".join(user)}]
 
     def _update_decomposition(self, track: TrackState, signature: str, repeated: bool,
@@ -721,7 +785,8 @@ class CollaborationEngineV2Agent:
 
     def _install_packets(self, packets: tuple[PeerPacket, ...], tracks: dict[str, TrackState],
                          round_number: int, events: list[dict[str, Any]],
-                         latest_wins: bool = False) -> None:
+                         latest_wins: bool = False,
+                         elapsed_s: float | None = None) -> None:
         targets: set[str] = set()
         for packet in packets:
             if packet.target_model not in tracks or packet.source_model not in tracks:
@@ -742,6 +807,8 @@ class CollaborationEngineV2Agent:
                 "content_chars": len(packet.content), "content_sha256": _sha256(packet.content),
                 "queue_position": len(pending) + 1,
             }
+            if elapsed_s is not None:
+                event["produced_at_s"] = round(elapsed_s, 6)
             pending.append((packet, event))
             events.append(event)
 
@@ -771,6 +838,8 @@ class CollaborationEngineV2Agent:
             "rounds": rounds, "max_track_rounds": rounds,
             "dispatch_cutoff_s": self.dispatch_cutoff_s,
             "model_call_wall_timeout_s": self.model_call_wall_timeout_s,
+            "fast_track_reserved_calls": self.fast_track_reserved_calls,
+            "reserve_release_margin_s": self.reserve_release_margin_s,
             "dispatch_cutoff_reached": cutoff_reached, "deterministic": deterministic,
             "packet_events": packet_events,
             "verification_policy": "single-flight-latest-v1",
@@ -782,6 +851,8 @@ class CollaborationEngineV2Agent:
                 ),
                 "physical_requests": provider_requests[model],
                 "pending_peer_packets": len(track.pending_packets),
+                "peer_packets_consumed": track.peer_packets_consumed,
+                "reserve_release_reason": track.reserve_release_reason,
                 "restarts": track.restarts,
                 "attempts": [asdict(attempt) for attempt in track.attempts],
                 "call_errors": track.call_errors, "retry_events": track.retry_events,
@@ -843,5 +914,11 @@ def create_agent() -> CollaborationEngineV2Agent:
         ),
         model_call_wall_timeout_s=float(
             os.environ.get("COLLAB_MODEL_CALL_WALL_TIMEOUT_S", "420")
+        ),
+        fast_track_reserved_calls=_env_int(
+            "COLLAB_FAST_TRACK_RESERVED_CALLS", 0, 0, 4
+        ),
+        reserve_release_margin_s=float(
+            os.environ.get("COLLAB_RESERVE_RELEASE_MARGIN_S", "120")
         ),
     )

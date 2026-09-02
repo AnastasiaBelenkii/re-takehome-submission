@@ -21,8 +21,12 @@ STRATEGIES = {
     "c2": "reciprocal-every-eligible-v1",
     "c0plus": "none",
     "c1plus": "progress-event-latest-v1",
+    "c0plus-reserve": "none",
+    "c1plus-fill-reserve": "progress-fill-event-latest-v2",
 }
-SALVAGE_CONDITIONS = frozenset({"c0plus", "c1plus"})
+SALVAGE_CONDITIONS = frozenset({
+    "c0plus", "c1plus", "c0plus-reserve", "c1plus-fill-reserve",
+})
 LEAN_IMAGE = (
     "ghcr.io/verifiedmechanisms/re-takehome-lean"
     "@sha256:ee48287cd31c0a7df572093a879ed7289c2f01fec6c7af8716c605fc8c670c39"
@@ -202,6 +206,12 @@ def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
         "COLLAB_SALVAGE_CHECK_TIMEOUT_S": str(resources.get("salvage_check_timeout_s", 2)),
         "COLLAB_MODEL_CALL_WALL_TIMEOUT_S": str(
             resources.get("model_call_wall_timeout_s", 420)
+        ),
+        "COLLAB_FAST_TRACK_RESERVED_CALLS": str(
+            resources.get("fast_track_reserved_calls", 0)
+        ),
+        "COLLAB_RESERVE_RELEASE_MARGIN_S": str(
+            resources.get("reserve_release_margin_s", 120)
         ),
     })
     with (task_root / "run.log").open("ab", buffering=0) as log:

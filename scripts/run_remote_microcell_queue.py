@@ -84,12 +84,19 @@ def main() -> int:
         else:
             if task_root.exists():
                 raise RuntimeError(f"refusing existing task directory: {task_root}")
+            descriptor = json.loads(descriptor_path.read_text())
+            not_before = datetime.fromisoformat(descriptor["not_before"])
+            while datetime.now(timezone.utc) < not_before:
+                time.sleep(min(10, max(1, (not_before - datetime.now(timezone.utc)).total_seconds())))
             cell.update({"status": "dispatching", "at": now()})
             state["updated_at"] = now()
             atomic(state_path, state)
+            runtime_descriptor = run_root / "runtime-dispatch" / descriptor_path.name
+            descriptor["dispatched_at"] = now()
+            atomic(runtime_descriptor, descriptor)
             output = subprocess.run(
                 [str(python), str(launcher), "--worktree", str(worktree),
-                 "--descriptor", str(descriptor_path), "--task-root", str(task_root)],
+                 "--descriptor", str(runtime_descriptor), "--task-root", str(task_root)],
                 cwd=worktree, check=True, text=True, stdout=subprocess.PIPE,
             ).stdout
             launch = json.loads(output.strip().splitlines()[-1])

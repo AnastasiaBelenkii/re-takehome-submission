@@ -17,6 +17,12 @@ worker 9 remains an unused recovery/collection spare. Read-only preflight
 found only detached historical monitoring shells on workers 1–5, no active
 experiment processes or containers; those sessions are left untouched.
 
+Successive blocks use fixed 32-minute UTC start slots. This keeps the matched
+conditions temporally aligned without a host-side controller while leaving a
+four-minute margin beyond the 28-minute cell ceiling. The runtime descriptor
+records the actual launch time; the immutable queued descriptor records its
+scheduled `not_before` time.
+
 The frozen resource envelope matches historical Stage 3 where applicable:
 $1 and 28 minutes per cell, a 16-minute dispatch window, 25 calls per model,
 and the same generation and verification limits. New mechanism-specific

@@ -19,7 +19,10 @@ STRATEGIES = {
     "c0": "none",
     "c1": "reciprocal-once-v1",
     "c2": "reciprocal-every-eligible-v1",
+    "c0plus": "none",
+    "c1plus": "progress-event-latest-v1",
 }
+SALVAGE_CONDITIONS = frozenset({"c0plus", "c1plus"})
 LEAN_IMAGE = (
     "ghcr.io/verifiedmechanisms/re-takehome-lean"
     "@sha256:ee48287cd31c0a7df572093a879ed7289c2f01fec6c7af8716c605fc8c670c39"
@@ -167,6 +170,7 @@ def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
         "sample_manifest_sha256": sha256(sample_manifest),
         "agent_sha256": sha256(worktree / "collaboration_engine_v2" / "agent.py"),
         "strategies_sha256": sha256(worktree / "collaboration_engine_v2" / "strategies.py"),
+        "salvage_sha256": sha256(worktree / "collaboration_engine_v2" / "salvage.py"),
         "lean_image": LEAN_IMAGE,
         "command": argv,
     })
@@ -194,6 +198,8 @@ def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
         "COLLAB_PEER_PACKET_CHARS": str(resources["peer_packet_chars"]),
         "COLLAB_DISPATCH_CUTOFF_S": str(resources["dispatch_cutoff_s"]),
         "COLLAB_MAX_FREE_429_RETRIES": str(resources["max_cost_free_429_retries"]),
+        "COLLAB_ENABLE_SALVAGE": "1" if condition in SALVAGE_CONDITIONS else "0",
+        "COLLAB_SALVAGE_CHECK_TIMEOUT_S": str(resources.get("salvage_check_timeout_s", 2)),
     })
     with (task_root / "run.log").open("ab", buffering=0) as log:
         process = subprocess.Popen(

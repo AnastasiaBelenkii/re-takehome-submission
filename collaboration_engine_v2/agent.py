@@ -15,6 +15,7 @@ from re_harness.llm import CostFreeRateLimitError
 from uplift_pilot.agent import _bounded_excerpt, _diagnostics, _normalized_candidate, _sha256
 
 from .constants import DESIGN_ID, MODELS
+from .salvage import compiles_with_sorry, contains_sorry, propose_sorrifications
 from .strategies import CollaborationStrategy, PeerPacket, TrackObservation, create_strategy
 from .tactics import (
     canonicalize_imports,
@@ -46,6 +47,11 @@ class AttemptRecord:
     imports_normalized: bool
     proposal_committed: bool
     restart_reason: str | None = None
+    salvage_attempted: bool = False
+    salvage_compiled: bool = False
+    salvage_mode: str | None = None
+    salvage_sha256: str | None = None
+    salvage_retained_lines: int = 0
 
 
 @dataclass
@@ -64,6 +70,7 @@ class TrackState:
     call_errors: list[dict[str, Any]] = field(default_factory=list)
     retry_events: list[dict[str, Any]] = field(default_factory=list)
     pending_packets: list[tuple[PeerPacket, dict[str, Any]]] = field(default_factory=list)
+    salvage_events: list[dict[str, Any]] = field(default_factory=list)
     active: bool = True
 
 
@@ -75,6 +82,7 @@ class CollaborationEngineV2Agent:
         diagnostic_chars: int = 6000, failure_memory_chars: int = 3000,
         peer_packet_chars: int = 6000, dispatch_cutoff_s: float = 960,
         max_cost_free_429_retries: int = 2, retry_backoff_s: float = 1.0,
+        enable_salvage: bool = False, salvage_check_timeout_s: int = 2,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         if max_calls_per_model is not None and not 1 <= max_calls_per_model <= 25:
@@ -98,6 +106,8 @@ class CollaborationEngineV2Agent:
         self.dispatch_cutoff_s = dispatch_cutoff_s
         self.max_cost_free_429_retries = max_cost_free_429_retries
         self.retry_backoff_s = retry_backoff_s
+        self.enable_salvage = enable_salvage
+        self.salvage_check_timeout_s = salvage_check_timeout_s
         self.clock = clock
 
     def _has_capacity(self, track: TrackState) -> bool:
@@ -240,6 +250,7 @@ class CollaborationEngineV2Agent:
                 contract_ok = declarations_ok
                 compatibility: dict[str, Any] = {}
                 lean_accepted = False
+                check = None
                 if contract_ok:
                     check = await services.lean.check_file(proposal)
                     diagnostic_text, signature, raw_count = _diagnostics(check.messages, limit=self.diagnostic_chars)
@@ -277,6 +288,7 @@ class CollaborationEngineV2Agent:
                 )
                 checkpoint_saved = (
                     contract_ok and not lean_accepted
+                    and not contains_sorry(proposal)
                     and (best_rank is None or rank < best_rank)
                 ) or accepted
                 if checkpoint_saved:
@@ -299,18 +311,52 @@ class CollaborationEngineV2Agent:
                 )
                 track.attempts.append(record)
                 track.restart_pending = False
+                packet_candidate = track.candidate
+                progress_candidate = None
+                residual_goals = ""
+                progress_sha256 = None
+                if (
+                    self.enable_salvage and contract_ok and check is not None
+                    and not accepted and not timed_out and not contains_sorry(proposal)
+                ):
+                    record.salvage_attempted = True
+                    salvage = await self._attempt_salvage(
+                        proposal, check.messages, track, services
+                    )
+                    if salvage is not None:
+                        progress_candidate = salvage["source"]
+                        residual_goals = salvage["residual_goals"]
+                        progress_sha256 = salvage["sha256"]
+                        record.salvage_compiled = True
+                        record.salvage_mode = salvage["mode"]
+                        record.salvage_sha256 = progress_sha256
+                        record.salvage_retained_lines = salvage["retained_lines"]
+                        track.candidate = progress_candidate
                 observation = TrackObservation(
-                    track.model, call_round, track.calls, track.candidate,
+                    track.model, call_round, track.calls, packet_candidate,
                     diagnostic_text, accepted, timed_out,
+                    progress_candidate, residual_goals, progress_sha256,
                 )
                 observations_by_round.setdefault(call_round, {})[track.model] = observation
                 completed_observation_rounds.add(call_round)
+                immediate_packets = tuple(self.strategy.after_observation(observation))
+                self._install_packets(
+                    immediate_packets, tracks, call_round, packet_events,
+                    latest_wins=True,
+                )
                 verified_success = verified_success or accepted
                 if not accepted:
-                    track.feedback = diagnostic_text or (
-                        "Lean timed out while checking the candidate." if timed_out
-                        else "Lean rejected the candidate without a diagnostic message."
-                    )
+                    if progress_candidate is not None:
+                        track.feedback = (
+                            "Warm Lean validated the current file up to explicit `sorry` "
+                            "holes. Preserve its compiling structure and replace every "
+                            "`sorry` with a complete proof. Residual goals:\n" + residual_goals
+                        )
+                    else:
+                        track.feedback = diagnostic_text or (
+                            "Lean timed out while checking the candidate." if timed_out
+                            else "Lean rejected the candidate without a diagnostic message."
+                        )
                     self._update_decomposition(track, signature, repeated, problem.challenge)
                     ready_to_schedule.append(track)
 
@@ -368,6 +414,57 @@ class CollaborationEngineV2Agent:
             }
         result["passed"] = bool(result.get("passed"))
         return result
+
+    async def _attempt_salvage(
+        self, proposal: str, messages: list[dict[str, Any]],
+        track: TrackState, services: Services,
+    ) -> dict[str, Any] | None:
+        candidates = propose_sorrifications(
+            proposal, messages, residual_chars=self.diagnostic_chars
+        )
+        if not candidates:
+            track.salvage_events.append({
+                "attempted": True, "compiled": False,
+                "reason": "no_safe_source_transformation",
+                "parent_sha256": _sha256(_normalized_candidate(proposal)),
+            })
+            return None
+        meaningful = [candidate for candidate in candidates if candidate.retained_lines > 0]
+        if not meaningful:
+            track.salvage_events.append({
+                "attempted": True, "compiled": False,
+                "reason": "no_retained_proof_structure",
+                "parent_sha256": _sha256(_normalized_candidate(proposal)),
+            })
+            return None
+        for index, candidate in enumerate(meaningful, start=1):
+            check = await services.lean.check_file(
+                candidate.source, timeout_s=self.salvage_check_timeout_s
+            )
+            event = {
+                "attempted": True,
+                "candidate_index": index,
+                "mode": candidate.mode,
+                "compiled": compiles_with_sorry(candidate.source, check),
+                "timed_out": bool(check.timed_out),
+                "duration_ms": int(check.duration_ms),
+                "raw_diagnostic_count": len(check.messages),
+                "retained_lines": candidate.retained_lines,
+                "declaration_line": candidate.declaration_line,
+                "error_line": candidate.error_line,
+                "parent_sha256": _sha256(_normalized_candidate(proposal)),
+                "skeleton_sha256": _sha256(_normalized_candidate(candidate.source)),
+            }
+            track.salvage_events.append(event)
+            if event["compiled"]:
+                return {
+                    "source": candidate.source,
+                    "mode": candidate.mode,
+                    "retained_lines": candidate.retained_lines,
+                    "residual_goals": candidate.residual_goals,
+                    "sha256": event["skeleton_sha256"],
+                }
+        return None
 
     @staticmethod
     def _compatibility_diagnostic(verification: dict[str, Any]) -> str:
@@ -428,7 +525,12 @@ class CollaborationEngineV2Agent:
             "", "Pristine Lean challenge:", "```lean", problem.challenge, "```",
         ]
         if phase == "repair":
-            user.extend(["", "Current candidate to repair:", "```lean", track.candidate, "```"])
+            heading = (
+                "Warm-checked partial skeleton to complete; replace every `sorry` while "
+                "preserving verified structure:"
+                if contains_sorry(track.candidate) else "Current candidate to repair:"
+            )
+            user.extend(["", heading, "```lean", track.candidate, "```"])
         if track.feedback:
             user.extend(["", "Bounded deduplicated Lean diagnostics:", "```text", track.feedback, "```"])
         if track.failure_memory:
@@ -460,7 +562,8 @@ class CollaborationEngineV2Agent:
             track.restart_pending = True
 
     def _install_packets(self, packets: tuple[PeerPacket, ...], tracks: dict[str, TrackState],
-                         round_number: int, events: list[dict[str, Any]]) -> None:
+                         round_number: int, events: list[dict[str, Any]],
+                         latest_wins: bool = False) -> None:
         targets: set[str] = set()
         for packet in packets:
             if packet.target_model not in tracks or packet.source_model not in tracks:
@@ -470,13 +573,18 @@ class CollaborationEngineV2Agent:
             if not packet.content.strip() or len(packet.content) > self.peer_packet_chars:
                 raise ValueError("strategy packet is empty or oversized")
             targets.add(packet.target_model)
+            pending = tracks[packet.target_model].pending_packets
+            if latest_wins and pending:
+                for _old_packet, old_event in pending:
+                    old_event["replaced_before_use"] = True
+                pending.clear()
             event = {
                 "after_round": round_number, "target_model": packet.target_model,
                 "source_model": packet.source_model, "kind": packet.kind,
                 "content_chars": len(packet.content), "content_sha256": _sha256(packet.content),
-                "queue_position": len(tracks[packet.target_model].pending_packets) + 1,
+                "queue_position": len(pending) + 1,
             }
-            tracks[packet.target_model].pending_packets.append((packet, event))
+            pending.append((packet, event))
             events.append(event)
 
     def _metadata(self, tracks: dict[str, TrackState], packet_events: list[dict[str, Any]],
@@ -492,6 +600,7 @@ class CollaborationEngineV2Agent:
             "design_id": DESIGN_ID, "condition": self.condition, "uplift_policy": "H+D",
             "collaboration_strategy": self.strategy.strategy_id, "seed": self.seed,
             "scheduler": "independent-track-v1",
+            "salvage_enabled": self.enable_salvage,
             "reasoning_effort_by_model": {model: "medium" for model in MODELS},
             "selected_model": best_model,
             "selection_reason": "accepted" if best_rank and best_rank[0] == 0 else "global_best_checkpoint",
@@ -515,6 +624,7 @@ class CollaborationEngineV2Agent:
                 "attempts": [asdict(attempt) for attempt in track.attempts],
                 "call_errors": track.call_errors, "retry_events": track.retry_events,
                 "failure_memory_entries": len(track.failure_memory),
+                "salvage_events": track.salvage_events,
             } for model, track in tracks.items()},
         }
 
@@ -554,7 +664,7 @@ def create_agent() -> CollaborationEngineV2Agent:
     raw_ceiling = os.environ.get("COLLAB_MAX_CALLS_PER_MODEL", "25")
     ceiling = None if raw_ceiling == "unlimited" else int(raw_ceiling)
     return CollaborationEngineV2Agent(
-        strategy=create_strategy(strategy_id, packet_chars=packet_chars), condition=condition,
+        strategy=create_strategy(strategy_id, packet_chars=packet_chars, models=MODELS), condition=condition,
         max_calls_per_model=ceiling,
         generation_max_tokens=_env_int("COLLAB_GENERATION_MAX_TOKENS", 12000, 1000, 32000),
         temperature=float(os.environ.get("COLLAB_TEMPERATURE", "0.2")),
@@ -565,4 +675,8 @@ def create_agent() -> CollaborationEngineV2Agent:
         peer_packet_chars=packet_chars,
         dispatch_cutoff_s=float(os.environ.get("COLLAB_DISPATCH_CUTOFF_S", "960")),
         max_cost_free_429_retries=_env_int("COLLAB_MAX_FREE_429_RETRIES", 2, 0, 5),
+        enable_salvage=os.environ.get("COLLAB_ENABLE_SALVAGE", "0") == "1",
+        salvage_check_timeout_s=_env_int(
+            "COLLAB_SALVAGE_CHECK_TIMEOUT_S", 2, 1, 120
+        ),
     )

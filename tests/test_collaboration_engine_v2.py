@@ -7,10 +7,17 @@ from pathlib import Path
 
 import pytest
 
-from collaboration_engine_v2.agent import CollaborationEngineV2Agent
+from collaboration_engine_v2.agent import CollaborationEngineV2Agent, TrackState
 from collaboration_engine_v2.constants import CONDITIONS
 from collaboration_engine_v2.experiment import build_queue, load_condition, load_resources
-from collaboration_engine_v2.strategies import NoCollaboration, ReciprocalCadence, TrackObservation
+from collaboration_engine_v2.strategies import (
+    NoCollaboration,
+    PeerPacket,
+    ReciprocalCadence,
+    TrackObservation,
+)
+from collaboration_engine_v2.salvage import contains_sorry, propose_sorrifications
+from collaboration_engine_v2.strategies import ProgressPackets
 from collaboration_engine_v2.tactics import (
     canonicalize_imports,
     declarations_unchanged,
@@ -52,14 +59,17 @@ class LLM:
 
 
 class Check:
-    def __init__(self, accepted=False, message="bad", timed_out=False):
+    def __init__(self, accepted=False, message="bad", timed_out=False, messages=None, duration_ms=1):
         self.accepted, self.timed_out = accepted, timed_out
-        self.messages = [] if accepted else [{"severity": "error", "data": message}]
+        self.duration_ms = duration_ms
+        self.messages = messages if messages is not None else (
+            [] if accepted else [{"severity": "error", "data": message}]
+        )
 
 
 class Lean:
     def __init__(self, outcomes): self.outcomes, self.sources = list(outcomes), []
-    async def check_file(self, source):
+    async def check_file(self, source, **_kwargs):
         self.sources.append(source)
         value = self.outcomes.pop(0)
         return Check(**value) if isinstance(value, dict) else Check(value)
@@ -96,6 +106,158 @@ def agent(strategy, **kwargs):
         strategy=strategy, max_calls_per_model=kwargs.pop("max_calls_per_model", 2),
         retry_backoff_s=0, **kwargs,
     )
+
+
+def test_sorrifier_preserves_prefix_and_later_declarations():
+    candidate = """import Mathlib
+theorem p : True := by
+  have h : True := by
+    trivial
+  exact missing
+
+lemma later : True := by trivial
+"""
+    messages = [{
+        "severity": "error", "pos": {"line": 5, "column": 2},
+        "endPos": {"line": 5, "column": 15},
+        "data": "Unknown identifier `missing`\n⊢ True",
+    }]
+    proposals = propose_sorrifications(candidate, messages)
+    assert len(proposals) == 3
+    assert proposals[0].mode == "diagnostic_span"
+    assert "have h : True" in proposals[0].source
+    assert "exact missing" not in proposals[0].source
+    assert "sorry" in proposals[0].source
+    assert "lemma later : True := by trivial" in proposals[0].source
+    assert contains_sorry(proposals[0].source)
+
+
+def test_sorrifier_first_preserves_code_after_a_local_failure():
+    candidate = """import Mathlib
+theorem p : True := by
+  have h : True := by
+    exact missing
+  exact h
+"""
+    messages = [{
+        "severity": "error", "pos": {"line": 4, "column": 4},
+        "endPos": {"line": 4, "column": 17}, "data": "Unknown identifier `missing`",
+    }]
+    proposals = propose_sorrifications(candidate, messages)
+    assert proposals[0].mode == "diagnostic_span"
+    assert "    sorry\n  exact h" in proposals[0].source
+    assert proposals[0].retained_lines > 0
+
+
+def test_sorrifier_fails_closed_on_statement_and_unpositioned_errors():
+    candidate = "import Mathlib\ntheorem p : MissingType := by\n  trivial\n"
+    statement_error = [{
+        "severity": "error", "pos": {"line": 2, "column": 12},
+        "data": "Unknown identifier `MissingType`",
+    }]
+    assert propose_sorrifications(candidate, statement_error) == ()
+    assert propose_sorrifications(candidate, [{
+        "severity": "error", "data": "malformed diagnostic without a position",
+    }]) == ()
+
+
+@pytest.mark.asyncio
+async def test_zero_retention_sorrification_is_not_used_as_partial_state():
+    broken = "import Mathlib\ntheorem p : True := by\n  exact missing\n"
+    positioned_error = [{
+        # The harness canonicalizes imports and inserts one blank line.
+        "severity": "error", "pos": {"line": 4, "column": 2},
+        "data": "Unknown identifier `missing`\n⊢ True",
+    }]
+    services = Services(
+        {MODEL_A: [broken], MODEL_B: [source("b0")]},
+        [False, {"messages": positioned_error}, False],
+    )
+    result = await agent(
+        NoCollaboration(), max_calls_per_model=1, enable_salvage=True
+    ).solve(problem(), services)
+
+    events = result.metadata["tracks"][MODEL_A]["salvage_events"]
+    assert events[-1]["reason"] == "no_retained_proof_structure"
+    assert not contains_sorry(result.solution)
+    assert all(not contains_sorry(value) for value, _metadata in services.checkpoints)
+
+
+@pytest.mark.asyncio
+async def test_c0plus_repairs_own_skeleton_and_c1plus_sends_progress_packet():
+    broken = """import Mathlib
+theorem p : True := by
+  have h : True := by
+    trivial
+  exact missing
+"""
+    positioned_error = [{
+        "severity": "error", "pos": {"line": 5, "column": 2},
+        "data": "Unknown identifier `missing`\n⊢ True",
+    }]
+    sorry_warning = [{"severity": "warning", "data": "declaration uses `sorry`"}]
+
+    async def run(strategy):
+        services = Services(
+            {MODEL_A: [broken, source("a1")], MODEL_B: [source("b0"), source("b1")]},
+            [
+                False,
+                {"messages": positioned_error},
+                {"messages": sorry_warning},
+                False,
+                False,
+                False,
+            ],
+        )
+        result = await agent(
+            strategy, max_calls_per_model=2, enable_salvage=True
+        ).solve(problem(), services)
+        return services, result
+
+    c0_services, c0_result = await run(NoCollaboration())
+    c0_a2 = [r for r in c0_services.llm.requests if r["model"] == MODEL_A][1]
+    assert "Warm-checked partial skeleton" in c0_a2["messages"][1]["content"]
+    assert "sorry" in c0_a2["messages"][1]["content"]
+    assert all("Compiler-grounded progress" not in r["messages"][1]["content"]
+               for r in c0_services.llm.requests)
+    assert c0_result.metadata["salvage_enabled"] is True
+
+    c1_services, c1_result = await run(ProgressPackets(
+        packet_chars=6000, models=(MODEL_A, MODEL_B)
+    ))
+    b_requests = [r for r in c1_services.llm.requests if r["model"] == MODEL_B]
+    assert "Compiler-grounded progress" in b_requests[1]["messages"][1]["content"]
+    assert "sorry" in b_requests[1]["messages"][1]["content"]
+    events = c1_result.metadata["packet_events"]
+    assert len(events) == 1
+    assert events[0]["used_on_call"] == 2
+    assert any(
+        event.get("compiled") is True
+        for event in c1_result.metadata["tracks"][MODEL_A]["salvage_events"]
+    )
+    assert not contains_sorry(c0_result.solution)
+    assert not contains_sorry(c1_result.solution)
+    assert all(not contains_sorry(value) for value, _metadata in c0_services.checkpoints)
+    assert all(not contains_sorry(value) for value, _metadata in c1_services.checkpoints)
+
+
+def test_progress_packet_queue_is_latest_wins_and_marks_stale_event():
+    engine = agent(ProgressPackets(packet_chars=6000, models=(MODEL_A, MODEL_B)))
+    tracks = {
+        MODEL_A: TrackState(MODEL_A, problem().challenge),
+        MODEL_B: TrackState(MODEL_B, problem().challenge),
+    }
+    events = []
+    first = PeerPacket(MODEL_B, MODEL_A, "first progress", "progress-event-latest-v1")
+    latest = PeerPacket(MODEL_B, MODEL_A, "latest progress", "progress-event-latest-v1")
+
+    engine._install_packets((first,), tracks, 1, events, latest_wins=True)
+    engine._install_packets((latest,), tracks, 2, events, latest_wins=True)
+
+    assert len(tracks[MODEL_B].pending_packets) == 1
+    assert tracks[MODEL_B].pending_packets[0][0] == latest
+    assert events[0]["replaced_before_use"] is True
+    assert "replaced_before_use" not in events[1]
 
 
 def test_tactic_substitution_preserves_every_pristine_declaration():

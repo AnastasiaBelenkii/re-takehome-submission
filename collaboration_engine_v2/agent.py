@@ -159,7 +159,10 @@ class CollaborationEngineV2Agent:
                 "raw_diagnostic_count": len(check.messages),
             })
             if not check.accepted:
-                rank = (1, 1 if check.timed_out else 0, len(check.messages))
+                # A complete warm-valid model proposal must always outrank a
+                # deterministic candidate that Lean rejected, independent of
+                # diagnostic counts.
+                rank = (2, 1 if check.timed_out else 0, len(check.messages))
                 best_candidate, best_rank = call_zero, rank
                 services.checkpoint(call_zero, {
                     "design_id": DESIGN_ID, "condition": self.condition,

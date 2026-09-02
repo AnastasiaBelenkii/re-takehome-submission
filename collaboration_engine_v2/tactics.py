@@ -9,6 +9,12 @@ TACTIC_CASCADE = "first | omega | norm_num | nlinarith | linarith | ring | aesop
 
 def tactic_candidate(challenge: str) -> str | None:
     """Replace proof holes only; declaration text and numeric answers stay byte-identical."""
+    # A term hole such as `abbrev answer : ℕ := sorry` is not a tactic proof.
+    # Substituting the cascade there creates malformed Lean (`:= first | ...`)
+    # and can poison crash-recovery selection. Skip call zero for the whole
+    # file rather than fabricate a value or leave a known `sorry` behind.
+    if re.search(r":=\s*sorry\b", challenge):
+        return None
     candidate, count = re.subn(r"\bsorry\b", TACTIC_CASCADE, challenge)
     return candidate if count else None
 

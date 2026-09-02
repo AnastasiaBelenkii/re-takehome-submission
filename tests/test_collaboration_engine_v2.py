@@ -265,6 +265,9 @@ def test_tactic_substitution_preserves_every_pristine_declaration():
     for item in manifest["problems"]:
         challenge = (ROOT / "sample-problems" / item["id"] / "challenge.lean").read_text()
         candidate = tactic_candidate(challenge)
+        if ":= sorry" in challenge:
+            assert candidate is None, item["id"]
+            continue
         assert candidate is not None, item["id"]
         assert candidate != challenge
         assert declarations_unchanged(challenge, candidate), item["id"]
@@ -288,6 +291,14 @@ theorem p (n : ℕ) : n = n := by exact helper n
         challenge,
         helper.replace("lemma helper", "lemma p.helper"),
     )
+
+
+def test_call_zero_never_substitutes_a_tactic_for_a_term_answer_hole():
+    challenge = """import Mathlib
+abbrev answer : ℕ := sorry
+theorem p : answer = 49 := by sorry
+"""
+    assert tactic_candidate(challenge) is None
 
 
 def test_live_structural_gate_ignores_semantic_source_spelling():
@@ -529,6 +540,7 @@ async def test_warm_lean_success_is_provisional_until_fresh_verification_passes(
     assert services.checkpoints[-1][1]["compatibility_status"] == "provisional_warm_lean_passed"
     assert services.verified_sources == [canonicalize_imports(warm_success)]
     assert result.metadata["calls_dispatched"] == 2
+    assert result.solution == canonicalize_imports(warm_success)
 
 
 @pytest.mark.asyncio

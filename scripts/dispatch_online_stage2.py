@@ -12,13 +12,6 @@ from pathlib import Path
 
 
 CONFIRMATION = "I_UNDERSTAND_THIS_LAUNCHES_PAID_STAGE2_CELLS"
-RESERVED_NON_WORKER_HOSTS = frozenset({
-    "takehome-worker-8",
-    "takehome-worker-9",
-    "takehome-worker-10",
-})
-
-
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -43,15 +36,17 @@ def validate_worker_allocation(plan: dict[str, object]) -> None:
     tasks = plan.get("tasks")
     if not isinstance(tasks, list):
         raise ValueError("plan.tasks must be a list")
-    reserved = sorted({
-        task.get("worker")
+    invalid = sorted({
+        str(task.get("worker"))
         for task in tasks
-        if isinstance(task, dict) and task.get("worker") in RESERVED_NON_WORKER_HOSTS
+        if not isinstance(task, dict)
+        or not isinstance(task.get("worker"), str)
+        or not task["worker"].startswith("takehome-worker-")
+        or not task["worker"].removeprefix("takehome-worker-").isdigit()
+        or not 1 <= int(task["worker"].removeprefix("takehome-worker-")) <= 10
     })
-    if reserved:
-        raise ValueError(
-            "plan schedules reserved non-experiment host(s): " + ", ".join(reserved)
-        )
+    if invalid:
+        raise ValueError("plan contains invalid worker host(s): " + ", ".join(invalid))
 
 
 def main() -> int:

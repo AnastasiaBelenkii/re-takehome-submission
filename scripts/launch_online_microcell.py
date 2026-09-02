@@ -200,6 +200,9 @@ def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
         "COLLAB_MAX_FREE_429_RETRIES": str(resources["max_cost_free_429_retries"]),
         "COLLAB_ENABLE_SALVAGE": "1" if condition in SALVAGE_CONDITIONS else "0",
         "COLLAB_SALVAGE_CHECK_TIMEOUT_S": str(resources.get("salvage_check_timeout_s", 2)),
+        "COLLAB_MODEL_CALL_WALL_TIMEOUT_S": str(
+            resources.get("model_call_wall_timeout_s", 420)
+        ),
     })
     with (task_root / "run.log").open("ab", buffering=0) as log:
         process = subprocess.Popen(

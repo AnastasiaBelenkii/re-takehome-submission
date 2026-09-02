@@ -523,7 +523,10 @@ async def test_warm_lean_success_is_provisional_until_fresh_verification_passes(
     assert attempt["compatibility_checked"] is True
     assert attempt["compatibility_passed"] is False
     assert attempt["accepted"] is False
-    assert attempt["checkpoint_saved"] is False
+    # A warm-valid proof is recoverable while the asynchronous fresh check is
+    # running, but it is never marked accepted unless that check passes.
+    assert attempt["checkpoint_saved"] is True
+    assert services.checkpoints[-1][1]["compatibility_status"] == "provisional_warm_lean_passed"
     assert services.verified_sources == [canonicalize_imports(warm_success)]
     assert result.metadata["calls_dispatched"] == 2
 
@@ -541,6 +544,60 @@ async def test_freshly_verified_warm_success_can_stop_and_checkpoint():
     assert attempt["accepted"] is True
     assert attempt["compatibility_passed"] is True
     assert attempt["checkpoint_saved"] is True
+
+
+@pytest.mark.asyncio
+async def test_fresh_verification_does_not_block_independent_model_calls():
+    release = asyncio.Event()
+
+    class SlowVerificationServices(Services):
+        async def verify(self, candidate):
+            self.verified_sources.append(candidate)
+            await release.wait()
+            return {
+                "passed": False, "answer_shape_passed": True,
+                "comparator_passed": False, "comparator_timed_out": True,
+                "comparator_exit_code": None,
+            }
+
+    services = SlowVerificationServices(
+        {
+            MODEL_A: [source("a0"), source("a1")],
+            MODEL_B: [source("b0"), source("b1")],
+        },
+        [False, True, False, False, False],
+    )
+    task = asyncio.create_task(
+        agent(NoCollaboration(), max_calls_per_model=2).solve(problem(), services)
+    )
+    while not services.verified_sources:
+        await asyncio.sleep(0)
+    for _ in range(100):
+        if len(services.llm.requests) > 2:
+            break
+        await asyncio.sleep(0)
+    assert len(services.llm.requests) > 2
+    release.set()
+    result = await task
+    assert result.metadata["verification_policy"] == "single-flight-latest-v1"
+
+
+@pytest.mark.asyncio
+async def test_semantic_model_call_has_a_hard_wall_deadline():
+    services = Services(
+        {MODEL_A: [(60, source("a"))], MODEL_B: [(60, source("b"))]},
+        [False],
+    )
+    result = await agent(
+        NoCollaboration(), max_calls_per_model=1, model_call_wall_timeout_s=0.01
+    ).solve(problem(), services)
+    errors = [
+        error for track in result.metadata["tracks"].values()
+        for error in track["call_errors"]
+    ]
+    assert len(errors) == 2
+    assert all(error["type"] == "TimeoutError" for error in errors)
+    assert services.llm.active == 0
 
 
 @pytest.mark.asyncio

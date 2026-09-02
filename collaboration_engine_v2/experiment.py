@@ -130,4 +130,7 @@ def effective_environment(task: Task, resources: dict[str, Any], lean_image: str
         "COLLAB_PEER_PACKET_CHARS": str(resources["peer_packet_chars"]),
         "COLLAB_DISPATCH_CUTOFF_S": str(resources["dispatch_cutoff_s"]),
         "COLLAB_MAX_FREE_429_RETRIES": str(resources["max_cost_free_429_retries"]),
+        "COLLAB_MODEL_CALL_WALL_TIMEOUT_S": str(
+            resources.get("model_call_wall_timeout_s", 420)
+        ),
     }

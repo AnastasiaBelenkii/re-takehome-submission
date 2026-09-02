@@ -102,15 +102,28 @@ async def _run(config: dict[str, Any]) -> int:
             source, spec.numeric_answer_names
         )
         verification_session = uuid.uuid4().hex
-        verdict = await asyncio.to_thread(
-            compare_solution,
-            image=config["lean_image"],
-            session_id=verification_session,
-            challenge=challenge,
-            solution=source,
-            spec=spec,
-            timeout_s=int(config["comparator_timeout_s"]),
-        )
+        try:
+            verdict = await asyncio.to_thread(
+                compare_solution,
+                image=config["lean_image"],
+                session_id=verification_session,
+                challenge=challenge,
+                solution=source,
+                spec=spec,
+                timeout_s=int(config["comparator_timeout_s"]),
+            )
+        except asyncio.CancelledError:
+            # asyncio cannot stop a thread already inside subprocess.run.
+            # Force-remove only this verifier's unguessable labelled container;
+            # compare_solution's own finally block remains a second cleanup.
+            await asyncio.shield(asyncio.to_thread(
+                cleanup_session_containers, verification_session
+            ))
+            events.emit(
+                "candidate_verification_cancelled",
+                source_sha256=hashlib.sha256(source.encode("utf-8")).hexdigest(),
+            )
+            raise
         result = {
             "passed": bool(answer_ok and verdict.passed),
             "answer_shape_passed": answer_ok,

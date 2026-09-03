@@ -1,25 +1,16 @@
 # Launch record
 
 - Experiment: `salvage-fill-reserve-v2-stage5-band-v1`
-- Frozen source: `e8af4fb7d278cbf7c5e3e636716a6512f85da140`
+- Runtime source: `d43af01404ca61a4ffb76bf55f9bb0d227b931af`
 - Workers: `takehome-worker-1` through `takehome-worker-8`
-- Main ITT cells: 96 (all gated and not launched)
-- Operational canaries: 2 (excluded from the ITT matrix)
-- Scheduling: continuous worker-local queues, eight concurrent cells maximum
+- Main ITT cells: 96
+- New operational p03/1729 cells: 2, excluded from main ITT matrix
+- Prior p07/1729 canaries: 2, separately archived extra portfolio-arm cells
+- Scheduling: continuous availability-aware dispatch, at most eight cells and two incomplete four-arm blocks
 - Evidence destination: `evidence/archives/stage5-band-20260903/`
-- Fresh remote checkout: `/opt/salvage-fill-reserve-v2-stage5-e8af4fb-20260903T0618Z/checkout`
-- Remote result root: `/opt/salvage-fill-reserve-v2-stage5-band-v1-20260903T0618Z`
-- Canary launch: 2026-09-02 23:16:25 PT (workers 1 and 2 only)
+- Status: frozen; dispatch pending
 
-## Canary decision
-
-At 2026-09-02 23:33 PT both canaries had reached the 960-second dispatch
-cutoff. C0+ dispatched 31 calls and C1+ dispatched 22; both recorded zero
-warm-Lean successes and an empty `verification_events` list. The preregistered
-release gate therefore failed. Wave D is halted and no main ITT cell was
-released.
-
-Both operational canaries subsequently completed at 2026-09-02 23:35 PT and
-failed the final Comparator. Their complete artifacts are published from
-remote root `/opt/salvage-fill-reserve-v2-stage5-band-v1-20260903T0618Z` on
-`evidence/results-20260902` at `ef4b1f5` (two cells).
+The failed p07 canary gate is retired by the final 01:10 PT plan. It was
+uninformative because neither agent found a warm-accepted candidate, so no
+verification could start. Wave D is released without a gate. Existing paid
+cells are never interrupted, and fixed block order is never adapted to results.

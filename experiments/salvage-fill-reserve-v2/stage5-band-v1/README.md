@@ -1,23 +1,24 @@
-# Stage 5 powered band study
+# Stage 5 four-arm powered band study
 
-This preregistered Wave D compares `c0plus-reserve` with
-`c1plus-fill-reserve` on `p03_sq_ge_two_ab`, `p07_least_divisible`,
-`p08_sum_products`, and `p09_imo1964`. Mechanically, each selected problem has
-at least one portfolio pass and one portfolio failure across Waves A and C;
-the 600-second regrade left `rmo_2000_6` with no passes. Twelve new fixed seeds
-produce 48 matched blocks and 96 ITT cells. The frozen experimental source is
-`e8af4fb7d278cbf7c5e3e636716a6512f85da140`.
+Wave D compares the single-track `qwen-solo-plus` and `gptoss-solo-plus`
+controls with the `c0plus-reserve` and `c1plus-fill-reserve` two-track
+portfolios. The main ITT matrix contains four mechanically selected band
+problems, six new fixed seeds, and four arms (96 cells). Each solo retains the
+portfolio track budget of 25 calls; same-model two-track performance is an
+analytical portfolio estimate from the single-track rates.
 
-The only resource changes from Stage 3 matched v1 are Comparator timeout 420s,
-verification reserve 480s, and outer time 2100s. Eight worker-local continuous
-queues run one cell per worker, launch matched pairs together, and rotate the
-condition-to-worker assignment. There are no fixed time slots.
+A problem entered the band exactly when the graders'-protocol outcomes across
+all Wave A and C portfolio cells contained at least one Comparator pass and at
+least one failure. Applied before launch, that rule selected p03, p07, p08, and
+p09. The rmo_2000_6 regrade did not flip and therefore did not enter the band.
 
-The two `p07_least_divisible`, seed-1729 canaries are operational checks and
-are excluded from the 96-cell ITT matrix. The main cells are released only
-after at least one canary records a
-completed passing verification and stops dispatching afterward. If both reach
-the dispatch cutoff without that event, the wave halts.
+The fixed launch order begins with an extra p03 seed-1729 C0+/C1+ pair as an
+operational observation, not a gate. The main matrix then cycles p03, p07, p08,
+p09 within every seed. All four arms of a problem-seed block are adjacent, and
+the dispatcher permits at most two incomplete blocks. The earlier p07
+seed-1729 canaries remain separately archived as extra portfolio-arm cells.
 
-Analysis is intention-to-treat over cells completed by 2026-09-03 03:30 PT.
-Incomplete cells are reported as incomplete and are never retried.
+Relative to Stage 3 matched v1, only Comparator timeout (420s), verification
+reserve (480s), and outer time (2100s) change. Analysis is intention-to-treat
+over all cells completed at the recorded analysis time; incomplete cells are
+reported as incomplete and are never retried.

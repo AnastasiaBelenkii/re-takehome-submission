@@ -23,10 +23,17 @@ STRATEGIES = {
     "c1plus": "progress-event-latest-v1",
     "c0plus-reserve": "none",
     "c1plus-fill-reserve": "progress-fill-event-latest-v2",
+    "qwen-solo-plus": "none",
+    "gptoss-solo-plus": "none",
 }
 SALVAGE_CONDITIONS = frozenset({
     "c0plus", "c1plus", "c0plus-reserve", "c1plus-fill-reserve",
+    "qwen-solo-plus", "gptoss-solo-plus",
 })
+AGENT_REFERENCES = {
+    "qwen-solo-plus": "submission.candidates:create_qwen_solo_plus_agent",
+    "gptoss-solo-plus": "submission.candidates:create_gptoss_solo_plus_agent",
+}
 LEAN_IMAGE = (
     "ghcr.io/verifiedmechanisms/re-takehome-lean"
     "@sha256:ee48287cd31c0a7df572093a879ed7289c2f01fec6c7af8716c605fc8c670c39"
@@ -157,10 +164,13 @@ def execute(worktree: Path, descriptor_path: Path, task_root: Path) -> int:
 
     resources = descriptor["resources"]
     output = task_root / "outputs"
+    agent_reference = AGENT_REFERENCES.get(
+        condition, "collaboration_engine_v2.agent:create_agent"
+    )
     argv = [
         str(worktree / ".venv/bin/python"), str(worktree / "run.py"),
         "--problems", str(problem_set), "--out", str(output),
-        "--n-workers", "1", "--agent", "collaboration_engine_v2.agent:create_agent",
+        "--n-workers", "1", "--agent", agent_reference,
     ]
     atomic(task_root / "provenance.json", {
         "schema_version": 1,

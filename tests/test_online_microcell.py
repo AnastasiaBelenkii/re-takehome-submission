@@ -6,10 +6,18 @@ import pytest
 
 from scripts.dispatch_online_stage2 import validate_worker_allocation
 from scripts.launch_online_microcell import (
+    AGENT_REFERENCES,
     preliminary_summary,
     result_summary,
     validate_api_key,
 )
+
+
+def test_solo_conditions_use_explicit_single_track_factories():
+    assert AGENT_REFERENCES == {
+        "qwen-solo-plus": "submission.candidates:create_qwen_solo_plus_agent",
+        "gptoss-solo-plus": "submission.candidates:create_gptoss_solo_plus_agent",
+    }
 
 
 def test_paid_plan_accepts_current_workers_and_rejects_malformed_hosts():

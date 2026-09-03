@@ -1,5 +1,14 @@
 # Consolidated experiment archive index
 
+## Public evidence copy
+
+The non-destructive public copy, queryable tables, readable transcript views,
+raw extracted objects, preservation bundles, and Git ancestry convention are
+documented in [PUBLIC_EVIDENCE_DATASET.md](PUBLIC_EVIDENCE_DATASET.md). The
+public entry point is:
+
+<https://vm-re-takehome-data.sfo3.digitaloceanspaces.com/index.html>
+
 ## Latest Stage 3 supplemental snapshot
 
 The completed September 2 matched C0+/C1+ wave and its offline packet-candidate

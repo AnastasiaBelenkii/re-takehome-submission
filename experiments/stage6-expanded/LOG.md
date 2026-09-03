@@ -17,3 +17,5 @@
 - 12:19 PT — PUSH: Archive root evidence/archives/stage6-calibration-20260903; 75 cells; passes per arm: qwen-solo-plus 45/75
 - 12:50 PT — PUSH: Archive root evidence/archives/stage6-calibration-20260903; 102 cells; passes per arm: qwen-solo-plus 59/102
 - 13:20 PT — PUSH: Archive root evidence/archives/stage6-calibration-20260903; 117 cells; passes per arm: qwen-solo-plus 64/117
+- 13:20 PT — C and C.2 cancelled by owner; neither will be queued or launched.
+- 13:50 PT — PUSH: Archive root evidence/archives/stage6-calibration-20260903; 126 cells; passes per arm: qwen-solo-plus 67/126

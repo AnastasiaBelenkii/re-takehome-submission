@@ -8,3 +8,5 @@
   Start only after every main Wave D cell has been dispatched; use workers
   1--8 only as each becomes free; never kill a running cell; no retry of a
   paid task.
+- Tail launch cutoff: 04:00 PT. Anything terminal by the 04:00 evidence
+  snapshot is reported; no running paid cell is killed at the cutoff.

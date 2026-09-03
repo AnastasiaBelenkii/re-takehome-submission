@@ -7,3 +7,4 @@
 - 09:04 PT — PUSH: Archive roots: experiments/analysis/packet-replay-k8.csv and experiments/analysis/packet-replay-wave-a-full.csv; 615 requests; passes per variant: k8 with 70, without 70; wave-a-full with 4, without 3
 - 09:35 PT — PUSH: Archive roots: experiments/analysis/packet-replay-k8.csv and experiments/analysis/packet-replay-wave-a-full.csv; 1168 requests; passes per variant: k8 with 138, without 139; wave-a-full with 7, without 6
 - 10:05 PT — PUSH: Archive roots: experiments/analysis/packet-replay-k8.csv and experiments/analysis/packet-replay-wave-a-full.csv; 1501 requests; passes per variant: k8 with 151, without 152; wave-a-full with 7, without 8
+- 10:35 PT — PUSH: Archive roots: experiments/analysis/packet-replay-k8.csv and experiments/analysis/packet-replay-wave-a-full.csv; 1726 requests; passes per variant: k8 with 151, without 152; wave-a-full with 14, without 13

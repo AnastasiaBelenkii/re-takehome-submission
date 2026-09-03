@@ -29,7 +29,13 @@ def main() -> int:
         if check.returncode == 0 and check.stdout.strip():
             result = json.loads(check.stdout)
             if result.get("status") == "failed":
-                return 1
+                active = subprocess.run(
+                    ["ssh", WORKER, "tmux has-session -t packet_replay_wave_a_c_v1"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                if active.returncode != 0:
+                    return 1
             if result.get("status") in {"complete", "budget_cap"}:
                 LOCAL_ROOT.mkdir(parents=True, exist_ok=True)
                 subprocess.run(

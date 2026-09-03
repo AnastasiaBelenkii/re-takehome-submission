@@ -20,6 +20,24 @@ from pathlib import Path
 from typing import Any
 
 
+SSH_TARGETS = {
+    "marketplace": "localhost",
+    "worker2": "root@10.122.0.4",
+    "worker3": "root@10.122.0.3",
+    "worker4": "root@10.122.0.5",
+    "worker5": "root@10.122.0.7",
+    "worker6": "root@10.122.0.6",
+    "worker7": "root@10.122.0.8",
+    "worker8": "root@10.122.0.10",
+}
+SSH_OPTIONS = (
+    "-o", "ConnectTimeout=10",
+    "-o", "ControlMaster=auto",
+    "-o", "ControlPath=/tmp/stage6-global-%C",
+    "-o", "ControlPersist=600",
+)
+
+
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -36,7 +54,19 @@ def run(*command: str, check: bool = True) -> subprocess.CompletedProcess[str]:
 
 
 def ssh(host: str, command: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return run("ssh", "-o", "ConnectTimeout=10", host, command, check=check)
+    return run("ssh", *SSH_OPTIONS, SSH_TARGETS.get(host, host), command, check=check)
+
+
+def retry_prelaunch(command: tuple[str, ...], attempts: int = 12) -> subprocess.CompletedProcess[str]:
+    """Retry only idempotent work that occurs before any paid-cell launch."""
+    last: subprocess.CompletedProcess[str] | None = None
+    for attempt in range(attempts):
+        last = run(*command, check=False)
+        if last.returncode == 0:
+            return last
+        time.sleep(min(10, 1 + attempt))
+    assert last is not None
+    raise RuntimeError(f"pre-launch transport failed after {attempts} tries: {command}: {last.stderr}")
 
 
 def main() -> int:
@@ -166,17 +196,27 @@ def main() -> int:
                 f"test ! -e {shlex.quote(remote_worker + '/tasks/' + task_id)} && "
                 f"mkdir -p {shlex.quote(remote_worker)}"
             )
-            ssh(host, setup)
-            run("scp", "-q", str(descriptor_file), f"{host}:{remote_worker}/descriptor.json")
-            run("scp", "-q", str(queue_file), f"{host}:{remote_worker}/queue.json")
+            target = SSH_TARGETS.get(host, host)
+            retry_prelaunch(("ssh", *SSH_OPTIONS, target, setup))
+            retry_prelaunch(("scp", "-q", *SSH_OPTIONS, str(descriptor_file), f"{target}:{remote_worker}/descriptor.json"))
+            retry_prelaunch(("scp", "-q", *SSH_OPTIONS, str(queue_file), f"{target}:{remote_worker}/queue.json"))
             command = (
                 f"cd {args.runtime} && exec .venv/bin/python scripts/run_remote_microcell_queue.py "
                 f"--worktree {args.runtime} --queue {remote_worker}/queue.json "
                 f"--run-root {remote_worker} >> {remote_worker}/queue.log 2>&1"
             )
-            launched = ssh(host, f"tmux new-session -d -s {shlex.quote(args.session)} {shlex.quote(command)}", check=False)
-            if launched.returncode != 0:
-                raise RuntimeError(f"ambiguous dispatch of {task_id} to {host}: {launched.stderr}")
+            launch_command = f"tmux new-session -d -s {shlex.quote(args.session)} {shlex.quote(command)}"
+            for attempt in range(12):
+                launched = ssh(host, launch_command, check=False)
+                if launched.returncode == 0:
+                    break
+                # A refused TCP connection proves the remote command was not
+                # delivered, so retrying cannot duplicate a paid dispatch.
+                if "Connection refused" not in launched.stderr:
+                    raise RuntimeError(f"ambiguous dispatch of {task_id} to {host}: {launched.stderr}")
+                time.sleep(min(10, 1 + attempt))
+            else:
+                raise RuntimeError(f"pre-dispatch connection refused for {task_id} on {host}")
             state["tasks"][task_id].update({"status": "running", "launched_at": now()})
             state["updated_at"] = now()
             atomic(args.state, state)

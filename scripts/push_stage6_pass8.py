@@ -105,8 +105,9 @@ def push(results: list[dict], include_band: bool = False) -> None:
         arms[arm] += int(bool(result.get("passed")))
     message = (
         f"Archive root evidence/archives/stage6-pass8-20260903; {len(results)} cells; "
-        "passes per arm: " + ", ".join(
-            f"{arm} {arms[arm]}/{totals[arm]}" for arm in sorted(totals)
+        "passes per arm: " + (
+            ", ".join(f"{arm} {arms[arm]}/{totals[arm]}" for arm in sorted(totals))
+            if totals else "qwen-solo-plus 0/0"
         )
     )
     append_log("PUSH: " + message)

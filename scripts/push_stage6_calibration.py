@@ -10,6 +10,7 @@ import time
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
+from statistics import median
 from zoneinfo import ZoneInfo
 
 ROOT = Path(os.environ.get("STAGE6_PUSH_REPO", "/opt/stage6-pusher/repo"))
@@ -63,16 +64,29 @@ def write_calibration(results: list[tuple[Path, dict]]) -> None:
     for _, result in results:
         counts[str(result["problem_id"])].append(bool(result.get("passed")))
     ceiling = {"p01_linear", "p02_frac_cancel", "p04_sum_sq", "p05_gcd_mersenne", "p06_pow_mod", "p10_factorial_pow"}
-    floor = {"putnam_2018_a1", "putnam_2020_a2", "rmo_2000_2", "rmo_2000_3", "rmo_2001_2"}
+    floor = {"putnam_2018_a1", "putnam_2020_a2", "rmo_2000_2", "rmo_2000_3", "rmo_2000_6", "rmo_2001_2"}
     band = {"p03_sq_ge_two_ab", "p07_least_divisible", "p08_sum_products", "p09_imo1964"}
     lines = ["# Stage 6 calibration", "", "Qwen solo-plus, seeds 7001–7008, at most 10 calls per cell.", "", "| Problem | pass@8 | Known class |", "|---|---:|---|"]
     order = ["p01_linear", "p02_frac_cancel", "p03_sq_ge_two_ab", "p04_sum_sq", "p05_gcd_mersenne", "p06_pow_mod", "p07_least_divisible", "p08_sum_products", "p09_imo1964", "p10_factorial_pow", "putnam_2018_a1", "putnam_2020_a2", "rmo_2000_2", "rmo_2000_3", "rmo_2000_6", "rmo_2001_2"]
     for problem in order:
-        label = "ceiling" if problem in ceiling else "floor" if problem in floor else "band" if problem in band else "unclassified (import-fix audit case)"
+        label = "ceiling" if problem in ceiling else "floor" if problem in floor else "band" if problem in band else "unclassified"
         values = counts.get(problem, [])
         lines.append(f"| {problem} | {sum(values)}/{len(values)} | {label} |")
     observed_band = sorted(problem for problem, values in counts.items() if 0 < sum(values) < len(values))
     lines.extend(("", "The known ceiling, floor, and band labels above were fixed in the assignment extension before this calibration. The mechanically observed 1–7/8 band is: " + (", ".join(observed_band) if observed_band else "none") + ".", ""))
+    outcome_rows = []
+    for label, passed in (("solved", True), ("failed", False)):
+        selected = [result for _, result in results if bool(result.get("passed")) is passed]
+        calls = [int((result.get("agent_metadata") or {}).get("calls_dispatched", 0)) for result in selected]
+        walls = [float(result.get("wall_s", 0.0)) for result in selected]
+        outcome_rows.append((label, len(selected), median(calls), median(walls)))
+    lines.extend((
+        "## Effort by outcome", "",
+        "| Outcome | Cells | Median model calls | Median wall time (s) |",
+        "|---|---:|---:|---:|",
+    ))
+    lines.extend(f"| {label} | {count} | {calls:g} | {wall:.1f} |" for label, count, calls, wall in outcome_rows)
+    lines.append("")
     (ROOT / "experiments/stage6-expanded/CALIBRATION.md").write_text("\n".join(lines))
 
 
@@ -92,6 +106,8 @@ def push(results: list[tuple[Path, dict]], complete: bool) -> None:
 def main() -> int:
     while True:
         results, complete = collect()
+        if complete and len(results) == 128:
+            append_log("calibration complete, 128 cells, CALIBRATION.md pushed.")
         push(results, complete)
         if complete:
             return 0

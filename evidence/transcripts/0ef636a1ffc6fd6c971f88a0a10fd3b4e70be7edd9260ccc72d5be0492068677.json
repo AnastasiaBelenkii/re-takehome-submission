@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "problem_id": "p01_linear",
+  "calls": [
+    {
+      "call_id": "613b5b5b301246c4885533ca591e7810",
+      "request": {
+        "model": "openai/gpt-oss-120b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are writing a complete Lean 4 file using Mathlib.\nReturn only the complete Lean code, preferably in one ```lean code block.\nPreserve the theorem names and statements from the challenge.\nDo not use sorry, admit, axioms, or unsafe escapes.\nThe file must compile as-is."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: p01_linear\nBaseline turn: 1/25\n\nProblem description:\n# p01_linear\n\nLet $x$ be a real number with $3x + 7 = 22$. Show that $x = 5$.\n\n\nChallenge Lean file:\n```lean\nimport Mathlib\n\n/-- If `3 * x + 7 = 22` for a real number `x`, then `x = 5`. -/\ntheorem p01_linear (x : ℝ) (h : 3 * x + 7 = 22) : x = 5 := by\n  sorry\n\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.1,
+            "completion": 0.5
+          }
+        },
+        "temperature": 0.2
+      },
+      "started_at": "2026-08-27T23:34:01.944448+00:00",
+      "reserved_cost_usd": 0.00669999,
+      "response": {
+        "id": "gen-1787873642-7KdJeCC5kKsvaqg0bUwD",
+        "object": "chat.completion",
+        "created": 1787873642,
+        "model": "openai/gpt-oss-120b",
+        "provider": "Novita",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "```lean\nimport Mathlib\n\n/-- If `3 * x + 7 = 22` for a real number `x`, then `x = 5`. -/\ntheorem p01_linear (x : ℝ) (h : 3 * x + 7 = 22) : x = 5 := by\n  linarith\n```",
+              "refusal": null,
+              "reasoning": "We need to fill proof. Simple algebra. Use linear arithmetic. In Lean, we can use `linarith` or `ring`. Use `linarith` after rewriting. Provide proof:\n\ntheorem p01_linear (x : ℝ) (h : 3 * x + 7 = 22) : x = 5 := by\n  have : 3 * x = 15 := by\n    have := congrArg (fun t => t - 7) h\n    simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc, mul_comm, mul_left_comm, mul_assoc] using this\nBut easier: use `linarith` with `h`. `linarith` can solve linear equations over ℝ. Provide:\n\n  linarith [h]\n\nWill that produce x = 5? Let's test: `linarith` with hypothesis `3 * x + 7 = 22`. It can deduce `x = 5`. Yes.\n\nSo final code:\n\n```lean\nimport Mathlib\n\n/-- If `3 * x + 7 = 22` for a real number `x`, then `x = 5`. -/\ntheorem p01_linear (x : ℝ) (h : 3 * x + 7 = 22) : x = 5 := by\n  linarith\n```\n\nCheck: `linarith` works with equality? It uses `h` as equality, can treat as two inequalities. Should be fine.\n\nAlternatively, we can do:\n\n  have : 3 * x = 15 := by\n    linarith [h]\n  have : x = 5 := by\n    have h3 : (3 : ℝ) ≠ 0 := by norm_num\n    have := mul_left_cancel₀ h3 this\n    exact this\nBut simpler: `linarith` directly yields.\n\nLet's ensure `linarith` imported? It's in `Mathlib`. Yes.\n\nThus final answer.",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to fill proof. Simple algebra. Use linear arithmetic. In Lean, we can use `linarith` or `ring`. Use `linarith` after rewriting. Provide proof:\n\ntheorem p01_linear (x : ℝ) (h : 3 * x + 7 = 22) : x = 5 := by\n  have : 3 * x = 15 := by\n    have := congrArg (fun t => t - 7) h\n    simpa [sub_eq_add_neg, add_comm, add_left_comm, add_assoc, mul_comm, mul_left_comm, mul_assoc] using this\nBut easier: use `linarith` with `h`. `linarith` can solve linear equations over ℝ. Provide:\n\n  linarith [h]\n\nWill that produce x = 5? Let's test: `linarith` with hypothesis `3 * x + 7 = 22`. It can deduce `x = 5`. Yes.\n\nSo final code:\n\n```lean\nimport Mathlib\n\n/-- If `3 * x + 7 = 22` for a real number `x`, then `x = 5`. -/\ntheorem p01_linear (x : ℝ) (h : 3 * x + 7 = 22) : x = 5 := by\n  linarith\n```\n\nCheck: `linarith` works with equality? It uses `h` as equality, can treat as two inequalities. Should be fine.\n\nAlternatively, we can do:\n\n  have : 3 * x = 15 := by\n    linarith [h]\n  have : x = 5 := by\n    have h3 : (3 : ℝ) ≠ 0 := by norm_num\n    have := mul_left_cancel₀ h3 this\n    exact this\nBut simpler: `linarith` directly yields.\n\nLet's ensure `linarith` imported? It's in `Mathlib`. Yes.\n\nThus final answer.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 262,
+          "completion_tokens": 502,
+          "total_tokens": 764,
+          "cost": 0.0001386,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.0001386,
+            "upstream_inference_prompt_cost": 1.31e-05,
+            "upstream_inference_completions_cost": 0.0001255
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 316,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.0001386,
+      "latency_ms": 6139,
+      "status": "ok"
+    }
+  ],
+  "actual_cost_usd": 0.0001386
+}

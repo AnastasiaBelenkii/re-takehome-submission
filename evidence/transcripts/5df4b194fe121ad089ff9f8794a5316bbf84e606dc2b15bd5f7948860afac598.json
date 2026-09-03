@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "problem_id": "p03_sq_ge_two_ab",
+  "calls": [
+    {
+      "call_id": "ce3f77adef3d4147938d7ff6711d6a13",
+      "request": {
+        "model": "openai/gpt-oss-120b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are writing a complete Lean 4 file using Mathlib.\nReturn only the complete Lean code, preferably in one ```lean code block.\nPreserve the theorem names and statements from the challenge.\nDo not use sorry, admit, axioms, or unsafe escapes.\nThe file must compile as-is."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: p03_sq_ge_two_ab\nBaseline turn: 1/25\n\nProblem description:\n# p03_sq_ge_two_ab\n\nFor any two real numbers $a$ and $b$, show that $a^2 + b^2 \\ge 2ab$.\n\n\nChallenge Lean file:\n```lean\nimport Mathlib\n\n/-- For any two real numbers `a` and `b`, show that `a ^ 2 + b ^ 2 ≥ 2 * a * b`. -/\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  sorry\n\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.1,
+            "completion": 0.5
+          }
+        },
+        "temperature": 0.2
+      },
+      "started_at": "2026-08-27T23:36:54.374229+00:00",
+      "reserved_cost_usd": 0.00670538,
+      "response": {
+        "id": "gen-1787873814-Snncv5T6Mys0kTv8MDfV",
+        "object": "chat.completion",
+        "created": 1787873814,
+        "model": "openai/gpt-oss-120b",
+        "provider": "AkashML",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "```lean\nimport Mathlib\n\n/-- For any two real numbers `a` and `b`, show that `a ^ 2 + b ^ 2 ≥ 2 * a * b`. -/\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  nlinarith\n```\n",
+              "refusal": null,
+              "reasoning": "We need to fill theorem proof. The inequality a^2 + b^2 ≥ 2ab is classic: (a - b)^2 ≥ 0. In Lean, we can use `by nlinarith` or `by` with `calc`. Use `by nlinarith` works with real numbers? `nlinarith` works for linear and nonlinear arithmetic with ℝ? It can handle squares. Should import `Mathlib.Tactic`. But `import Mathlib` includes many tactics. Use `by nlinarith`. Or we can do:\n\n```\n  have h : (a - b) ^ 2 ≥ 0 := by\n    have : (a - b) ^ 2 = (a - b) * (a - b) := by ring\n    have : (a - b) * (a - b) ≥ 0 := mul_self_nonneg (a - b)\n    simpa [pow_two] using this\n  simpa [pow_two, mul_comm, mul_left_comm, mul_assoc, add_comm, add_left_comm, add_assoc,\n    sub_eq_add_neg, add_comm, add_left_comm, add_assoc, mul_add, add_mul, sub_mul,\n    mul_sub, add_comm] using h\n```\n\nBut easier: `by nlinarith` should prove.\n\nLet's test: theorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by nlinarith\n\nWill nlinarith know that `a ^ 2` is `a*a`? It can handle `pow_two`. Might need to rewrite. Could also use `by` with `calc`:\n\n```\n  have h : (a - b) ^ 2 ≥ 0 := by\n    have : (a - b) * (a - b) ≥ 0 := mul_self_nonneg (a - b)\n    simpa [pow_two] using this\n  have : a ^ 2 + b ^ 2 - 2 * a * b = (a - b) ^ 2 := by ring\n  have : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n    have : a ^ 2 + b ^ 2 - 2 * a * b ≥ 0 := by\n      simpa [this] using h\n    linarith\n  exact this\n```\n\nSimplify: Use `by` with `nlinarith` is simplest.\n\nLet's produce final Lean code:\n\n```\nimport Mathlib\n\n/-- For any two real numbers `a` and `b`, show that `a ^ 2 + b ^ 2 ≥ 2 * a * b`. -/\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  nlinarith\n```\n\nWill `nlinarith` need `open scoped`? Not.\n\nCheck: `nlinarith` works with `ℝ`. It uses `pow_two` rewriting automatically? I think it can handle `a ^ 2`. It may need `pow_two` lemma. Usually `nlinarith` can handle `a ^ 2` as `a * a`. It has a preprocessing step that rewrites `x ^ 2` to `x * x`. So fine.\n\nThus final answer.",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to fill theorem proof. The inequality a^2 + b^2 ≥ 2ab is classic: (a - b)^2 ≥ 0. In Lean, we can use `by nlinarith` or `by` with `calc`. Use `by nlinarith` works with real numbers? `nlinarith` works for linear and nonlinear arithmetic with ℝ? It can handle squares. Should import `Mathlib.Tactic`. But `import Mathlib` includes many tactics. Use `by nlinarith`. Or we can do:\n\n```\n  have h : (a - b) ^ 2 ≥ 0 := by\n    have : (a - b) ^ 2 = (a - b) * (a - b) := by ring\n    have : (a - b) * (a - b) ≥ 0 := mul_self_nonneg (a - b)\n    simpa [pow_two] using this\n  simpa [pow_two, mul_comm, mul_left_comm, mul_assoc, add_comm, add_left_comm, add_assoc,\n    sub_eq_add_neg, add_comm, add_left_comm, add_assoc, mul_add, add_mul, sub_mul,\n    mul_sub, add_comm] using h\n```\n\nBut easier: `by nlinarith` should prove.\n\nLet's test: theorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by nlinarith\n\nWill nlinarith know that `a ^ 2` is `a*a`? It can handle `pow_two`. Might need to rewrite. Could also use `by` with `calc`:\n\n```\n  have h : (a - b) ^ 2 ≥ 0 := by\n    have : (a - b) * (a - b) ≥ 0 := mul_self_nonneg (a - b)\n    simpa [pow_two] using this\n  have : a ^ 2 + b ^ 2 - 2 * a * b = (a - b) ^ 2 := by ring\n  have : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n    have : a ^ 2 + b ^ 2 - 2 * a * b ≥ 0 := by\n      simpa [this] using h\n    linarith\n  exact this\n```\n\nSimplify: Use `by` with `nlinarith` is simplest.\n\nLet's produce final Lean code:\n\n```\nimport Mathlib\n\n/-- For any two real numbers `a` and `b`, show that `a ^ 2 + b ^ 2 ≥ 2 * a * b`. -/\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  nlinarith\n```\n\nWill `nlinarith` need `open scoped`? Not.\n\nCheck: `nlinarith` works with `ℝ`. It uses `pow_two` rewriting automatically? I think it can handle `a ^ 2`. It may need `pow_two` lemma. Usually `nlinarith` can handle `a ^ 2` as `a * a`. It has a preprocessing step that rewrites `x ^ 2` to `x * x`. So fine.\n\nThus final answer.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 278,
+          "completion_tokens": 816,
+          "total_tokens": 1094,
+          "cost": 0.00014706,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 64,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00014706,
+            "upstream_inference_prompt_cost": 8.34e-06,
+            "upstream_inference_completions_cost": 0.00013872
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 514,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.00014706,
+      "latency_ms": 16137,
+      "status": "ok"
+    },
+    {
+      "call_id": "8703e5134e014a119f1880c1f5f12f43",
+      "request": {
+        "model": "openai/gpt-oss-120b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are writing a complete Lean 4 file using Mathlib.\nReturn only the complete Lean code, preferably in one ```lean code block.\nPreserve the theorem names and statements from the challenge.\nDo not use sorry, admit, axioms, or unsafe escapes.\nThe file must compile as-is."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: p03_sq_ge_two_ab\nBaseline turn: 2/25\n\nProblem description:\n# p03_sq_ge_two_ab\n\nFor any two real numbers $a$ and $b$, show that $a^2 + b^2 \\ge 2ab$.\n\n\nChallenge Lean file:\n```lean\nimport Mathlib\n\n/-- For any two real numbers `a` and `b`, show that `a ^ 2 + b ^ 2 ≥ 2 * a * b`. -/\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  sorry\n\n```\n\nLean compiler feedback from the previous candidate:\n```text\nerror at {'line': 4, 'column': 2}: linarith failed to find a contradiction\na b : ℝ\na✝ : a ^ 2 + b ^ 2 < 2 * a * b\n⊢ False\nfailed\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.1,
+            "completion": 0.5
+          }
+        },
+        "temperature": 0.2
+      },
+      "started_at": "2026-08-27T23:37:20.234514+00:00",
+      "reserved_cost_usd": 0.006728370000000001,
+      "response": {
+        "id": "gen-1787873840-NrXqe40ehKyB9quXphkQ",
+        "object": "chat.completion",
+        "created": 1787873840,
+        "model": "openai/gpt-oss-120b",
+        "provider": "CoreWeave",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "```lean\nimport Mathlib\n\n/-- For any two real numbers `a` and `b`, show that `a ^ 2 + b ^ 2 ≥ 2 * a * b`. -/\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  have h : (0 : ℝ) ≤ (a - b) ^ 2 := by\n    exact pow_two_nonneg (a - b)\n  have h' : (0 : ℝ) ≤ a ^ 2 - 2 * a * b + b ^ 2 := by\n    have h_eq : (a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2 := by\n      ring\n    simpa [h_eq] using h\n  linarith\n```\n",
+              "refusal": null,
+              "reasoning": "We need to prove a^2 + b^2 ≥ 2ab. This is classic inequality (a - b)^2 ≥ 0. In Lean, we can use `by nlinarith` or `by` with `have` etc. Since the previous attempt used `linarith` but failed because inequality is not strict? Actually we need to prove non-strict inequality. Use `by nlinarith` works for polynomial inequalities. Let's test: `by nlinarith` should prove. Provide code:\n\n```lean\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  have h : (a - b) ^ 2 ≥ 0 := by\n    have : (a - b) ^ 2 = (a - b) * (a - b) := by ring\n    -- but easier: exact pow_two_nonneg (a - b)\n  ...\n```\n\nActually there is lemma `pow_two_nonneg` for real numbers: `pow_two_nonneg (a - b) : 0 ≤ (a - b) ^ 2`. So we can use that.\n\nThen expand: `(a - b)^2 = a^2 - 2*a*b + b^2`. Use `ring` to rewrite.\n\nProof:\n\n```lean\n  have h := pow_two_nonneg (a - b)\n  have : a ^ 2 + b ^ 2 - 2 * a * b = (a - b) ^ 2 := by ring\n  have : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n    have : a ^ 2 + b ^ 2 - 2 * a * b ≥ 0 := by\n      simpa [sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc, add_comm, add_left_comm, add_assoc] using h\n    linarith\n  exact this\n```\n\nBut we can simplify: from `pow_two_nonneg (a - b)` we have `0 ≤ (a - b)^2`. Then `ring` to rewrite `(a - b)^2` as `a^2 - 2*a*b + b^2`. So we get `0 ≤ a^2 - 2*a*b + b^2`. Rearranged gives `a^2 + b^2 ≥ 2*a*b`. Use `linarith` after rewriting.\n\nImplementation:\n\n```lean\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  have h : 0 ≤ (a - b) ^ 2 := by\n    exact pow_two_nonneg (a - b)\n  have h' : 0 ≤ a ^ 2 - 2 * a * b + b ^ 2 := by\n    simpa [pow_two, sub_eq_add_neg, add_comm, add_left_comm, add_assoc, mul_comm, mul_left_comm,\n      mul_assoc, add_comm, add_left_comm, add_assoc, sub_eq, sub_eq_add_neg] using h\n```\n\nBut `pow_two` is `pow_two` lemma: `pow_two x = x ^ 2`. Actually `pow_two` is definitional? In Mathlib, `pow_two` is lemma `x ^ 2 = x * x`. Could use `ring` to rewrite.\n\nSimpler: use `nlinarith` directly:\n\n```lean\nby nlinarith\n```\n\nWill `nlinarith` solve? For real numbers, `nlinarith` can handle polynomial inequalities. The goal is `a ^ 2 + b ^ 2 ≥ 2 * a * b`. This is equivalent to `a ^ 2 + b ^ 2 - 2 * a * b ≥ 0`. `nlinarith` should prove because it's a sum of squares? Not sure if `nlinarith` can prove automatically. Usually `nlinarith` can prove inequalities that are true for all reals if they are consequences of nonnegativity of squares? It may need to know that squares are nonnegative. It has built-in lemma `pow_two_nonneg`. I think `nlinarith` can handle it.\n\nBut to be safe, we can provide explicit proof using `pow_two_nonneg` and `ring`.\n\nImplementation:\n\n```lean\nimport Mathlib\n\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  have h : 0 ≤ (a - b) ^ 2 := by\n    exact pow_two_nonneg (a - b)\n  have : a ^ 2 + b ^ 2 - 2 * a * b ≥ 0 := by\n    -- rewrite (a - b)^2\n    simpa [pow_two, sub_eq, sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc, add_comm,\n      add_left_comm, add_assoc, sub_eq, sub_eq_add_neg, sub_eq] using h\n```\n\nBut the `simpa` rewriting is messy.\n\nBetter: Use `ring` to transform.\n\n```lean\n  have : a ^ 2 + b ^ 2 - 2 * a * b ≥ 0 := by\n    have : (a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2 := by ring\n    have := h\n    -- rewrite using this equality\n    simpa [this, sub_eq_add_neg, add_comm, add_left_comm, add_assoc, mul_comm, mul_left_comm,\n      mul_assoc] using h\n```\n\nBut we need to convert `0 ≤ (a - b)^2` to `a ^ 2 + b ^ 2 - 2 * a * b ≥ 0`. Using `have h_eq : (a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2 := by ring`. Then `have : 0 ≤ a ^ 2 - 2 * a * b + b ^ 2 := by simpa [h_eq] using h`. Then we can `linarith` to get the desired inequality.\n\nFinally:\n\n```lean\n  have h' : 0 ≤ a ^ 2 - 2 * a * b + b ^ 2 := by\n    have h_eq : (a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2 := by ring\n    simpa [h_eq] using h\n  linarith\n```\n\n`linarith` with `h'` should produce `a ^ 2 + b ^ 2 ≥ 2 * a * b`. Because `h'` is `0 ≤ a^2 - 2ab + b^2`. Rearranged yields the goal.\n\nLet's craft final Lean code:\n\n```lean\nimport Mathlib\n\n/-- For any two real numbers `a` and `b`, show that `a ^ 2 + b ^ 2 ≥ 2 * a * b`. -/\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  have h : 0 ≤ (a - b) ^ 2 := by\n    exact pow_two_nonneg (a - b)\n  have h' : 0 ≤ a ^ 2 - 2 * a * b + b ^ 2 := by\n    have h_eq : (a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2 := by\n      ring\n    simpa [h_eq] using h\n  linarith\n```\n\nCheck imports: `Mathlib` includes everything. `pow_two_nonneg` is in `Mathlib`. Might need `open scoped`? Not needed.\n\n`linarith` works with `h'`. Should compile.\n\nReturn code block.",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to prove a^2 + b^2 ≥ 2ab. This is classic inequality (a - b)^2 ≥ 0. In Lean, we can use `by nlinarith` or `by` with `have` etc. Since the previous attempt used `linarith` but failed because inequality is not strict? Actually we need to prove non-strict inequality. Use `by nlinarith` works for polynomial inequalities. Let's test: `by nlinarith` should prove. Provide code:\n\n```lean\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  have h : (a - b) ^ 2 ≥ 0 := by\n    have : (a - b) ^ 2 = (a - b) * (a - b) := by ring\n    -- but easier: exact pow_two_nonneg (a - b)\n  ...\n```\n\nActually there is lemma `pow_two_nonneg` for real numbers: `pow_two_nonneg (a - b) : 0 ≤ (a - b) ^ 2`. So we can use that.\n\nThen expand: `(a - b)^2 = a^2 - 2*a*b + b^2`. Use `ring` to rewrite.\n\nProof:\n\n```lean\n  have h := pow_two_nonneg (a - b)\n  have : a ^ 2 + b ^ 2 - 2 * a * b = (a - b) ^ 2 := by ring\n  have : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n    have : a ^ 2 + b ^ 2 - 2 * a * b ≥ 0 := by\n      simpa [sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc, add_comm, add_left_comm, add_assoc] using h\n    linarith\n  exact this\n```\n\nBut we can simplify: from `pow_two_nonneg (a - b)` we have `0 ≤ (a - b)^2`. Then `ring` to rewrite `(a - b)^2` as `a^2 - 2*a*b + b^2`. So we get `0 ≤ a^2 - 2*a*b + b^2`. Rearranged gives `a^2 + b^2 ≥ 2*a*b`. Use `linarith` after rewriting.\n\nImplementation:\n\n```lean\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  have h : 0 ≤ (a - b) ^ 2 := by\n    exact pow_two_nonneg (a - b)\n  have h' : 0 ≤ a ^ 2 - 2 * a * b + b ^ 2 := by\n    simpa [pow_two, sub_eq_add_neg, add_comm, add_left_comm, add_assoc, mul_comm, mul_left_comm,\n      mul_assoc, add_comm, add_left_comm, add_assoc, sub_eq, sub_eq_add_neg] using h\n```\n\nBut `pow_two` is `pow_two` lemma: `pow_two x = x ^ 2`. Actually `pow_two` is definitional? In Mathlib, `pow_two` is lemma `x ^ 2 = x * x`. Could use `ring` to rewrite.\n\nSimpler: use `nlinarith` directly:\n\n```lean\nby nlinarith\n```\n\nWill `nlinarith` solve? For real numbers, `nlinarith` can handle polynomial inequalities. The goal is `a ^ 2 + b ^ 2 ≥ 2 * a * b`. This is equivalent to `a ^ 2 + b ^ 2 - 2 * a * b ≥ 0`. `nlinarith` should prove because it's a sum of squares? Not sure if `nlinarith` can prove automatically. Usually `nlinarith` can prove inequalities that are true for all reals if they are consequences of nonnegativity of squares? It may need to know that squares are nonnegative. It has built-in lemma `pow_two_nonneg`. I think `nlinarith` can handle it.\n\nBut to be safe, we can provide explicit proof using `pow_two_nonneg` and `ring`.\n\nImplementation:\n\n```lean\nimport Mathlib\n\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  have h : 0 ≤ (a - b) ^ 2 := by\n    exact pow_two_nonneg (a - b)\n  have : a ^ 2 + b ^ 2 - 2 * a * b ≥ 0 := by\n    -- rewrite (a - b)^2\n    simpa [pow_two, sub_eq, sub_eq_add_neg, mul_comm, mul_left_comm, mul_assoc, add_comm,\n      add_left_comm, add_assoc, sub_eq, sub_eq_add_neg, sub_eq] using h\n```\n\nBut the `simpa` rewriting is messy.\n\nBetter: Use `ring` to transform.\n\n```lean\n  have : a ^ 2 + b ^ 2 - 2 * a * b ≥ 0 := by\n    have : (a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2 := by ring\n    have := h\n    -- rewrite using this equality\n    simpa [this, sub_eq_add_neg, add_comm, add_left_comm, add_assoc, mul_comm, mul_left_comm,\n      mul_assoc] using h\n```\n\nBut we need to convert `0 ≤ (a - b)^2` to `a ^ 2 + b ^ 2 - 2 * a * b ≥ 0`. Using `have h_eq : (a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2 := by ring`. Then `have : 0 ≤ a ^ 2 - 2 * a * b + b ^ 2 := by simpa [h_eq] using h`. Then we can `linarith` to get the desired inequality.\n\nFinally:\n\n```lean\n  have h' : 0 ≤ a ^ 2 - 2 * a * b + b ^ 2 := by\n    have h_eq : (a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2 := by ring\n    simpa [h_eq] using h\n  linarith\n```\n\n`linarith` with `h'` should produce `a ^ 2 + b ^ 2 ≥ 2 * a * b`. Because `h'` is `0 ≤ a^2 - 2ab + b^2`. Rearranged yields the goal.\n\nLet's craft final Lean code:\n\n```lean\nimport Mathlib\n\n/-- For any two real numbers `a` and `b`, show that `a ^ 2 + b ^ 2 ≥ 2 * a * b`. -/\ntheorem p03_sq_ge_two_ab (a b : ℝ) : a ^ 2 + b ^ 2 ≥ 2 * a * b := by\n  have h : 0 ≤ (a - b) ^ 2 := by\n    exact pow_two_nonneg (a - b)\n  have h' : 0 ≤ a ^ 2 - 2 * a * b + b ^ 2 := by\n    have h_eq : (a - b) ^ 2 = a ^ 2 - 2 * a * b + b ^ 2 := by\n      ring\n    simpa [h_eq] using h\n  linarith\n```\n\nCheck imports: `Mathlib` includes everything. `pow_two_nonneg` is in `Mathlib`. Might need `open scoped`? Not needed.\n\n`linarith` works with `h'`. Should compile.\n\nReturn code block.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 347,
+          "completion_tokens": 1923,
+          "total_tokens": 2270,
+          "cost": 0.00033732,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 64,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00033732,
+            "upstream_inference_prompt_cost": 1.041e-05,
+            "upstream_inference_completions_cost": 0.00032691
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1203,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.00033732,
+      "latency_ms": 46877,
+      "status": "ok"
+    }
+  ],
+  "actual_cost_usd": 0.00048438
+}

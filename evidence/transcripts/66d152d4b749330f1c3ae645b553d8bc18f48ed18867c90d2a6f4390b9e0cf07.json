@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "problem_id": "p02_frac_cancel",
+  "calls": [
+    {
+      "call_id": "2b34ae161cd34fc3861f6a7641780521",
+      "request": {
+        "model": "openai/gpt-oss-120b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are writing a complete Lean 4 file using Mathlib.\nReturn only the complete Lean code, preferably in one ```lean code block.\nPreserve the theorem names and statements from the challenge.\nDo not use sorry, admit, axioms, or unsafe escapes.\nThe file must compile as-is."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: p02_frac_cancel\nBaseline turn: 1/25\n\nProblem description:\n# p02_frac_cancel\n\nWhat is the value of $x$ if $x = \\dfrac{2009^2 - 2009}{2009}$? Show that it is $2008$.\n\n\nChallenge Lean file:\n```lean\nimport Mathlib\n\n/-- What is the value of `x` if `x = (2009 ^ 2 - 2009) / 2009`? Show that it is `2008`. -/\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  sorry\n\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": false,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.1,
+            "completion": 0.5
+          }
+        },
+        "temperature": 0.2
+      },
+      "started_at": "2026-08-23T20:55:02.083025+00:00",
+      "reserved_cost_usd": 0.006709230000000001,
+      "response": {
+        "id": "gen-1787518502-F4N3EFiyumwNbUwrj6zT",
+        "object": "chat.completion",
+        "created": 1787518502,
+        "model": "openai/gpt-oss-120b",
+        "provider": "CoreWeave",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "```lean\nimport Mathlib\n\n/-- What is the value of `x` if `x = (2009 ^ 2 - 2009) / 2009`? Show that it is `2008`. -/\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  have hcalc : (2009 ^ 2 - 2009) / 2009 = (2008 : ℝ) := by\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    calc\n      (2009 ^ 2 - 2009) / 2009\n          = ((2009 * 2009) - 2009) / 2009 := by\n            simpa [pow_two]\n      _ = (2009 * (2009 - 1)) / 2009 := by\n            ring\n      _ = 2009 - 1 := by\n            field_simp [h2009]\n      _ = 2008 := by norm_num\n  simpa [←h] using hcalc\n```\n",
+              "refusal": null,
+              "reasoning": "We need to fill Lean proof. The statement: theorem p02_frac_cancel (x : ℝ) (h : x = (2005? actually 2009) ^ 2 - 2009) / 2009) : x = 2008.\n\nWe need to prove equality using arithmetic simplification. Use ring or field simplifications.\n\nWe have real numbers. Compute (2009 ^ 2 - 2009) / 2009 = (2009*(2009-1))/2009 = 2009-1 = 2008, provided 2009 ≠ 0. Real numbers, 2009 is nonzero.\n\nWe can use `field_simp` or `ring`. Use `have` rewriting.\n\nLean code:\n\n```\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  have h' : (2009 ^ 2 - 2009) / 2009 = 2008 := by\n    field_simp [pow_two, mul_comm, mul_left_comm, mul_assoc] \n  -- but need to compute.\n```\n\nLet's compute: 2009 ^ 2 = 2009 * 2009. So (2009*2009 - 2009) / 2009 = (2009*(2009-1))/2009 = 2009-1 = 2008.\n\nWe can use `ring` after clearing denominator: `field_simp` does it.\n\nImplementation:\n\n```\n  have hcalc : (2009 ^ 2 - 2009) / 2009 = 2008 := by\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    field_simp [pow_two, h2009] \n    ring\n```\n\nBut `field_simp` expects a goal of equality after simplification? Actually `field_simp` can transform goal. Let's try:\n\nGoal: `(2009 ^ 2 - 2009) / 2009 = 2008`. Use `field_simp` to clear denominators: it will turn into `(2009 ^ 2 - 2009) = 2008 * 2009`. Then we can `ring`. So:\n\n```\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    field_simp [pow_two] [h2009] -- not correct syntax\n```\n\n`field_simp` can take `?` but we can just do:\n\n```\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    field_simp [pow_two] at *\n```\n\nBut we need to apply to goal. Use `field_simp [pow_two]` will rewrite goal.\n\nSimpler: Use `ring` after rewriting expression:\n\n```\n    calc\n      (2009 ^ 2 - 2009) / 2009\n          = ((2009 * 2009) - 2009) / 2009 := by simpa [pow_two]\n      _ = (2009 * (2009 - 1)) / 2009 := by ring\n      _ = 2009 - 1 := by\n        have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n        field_simp [h2009]\n      _ = 2008 := by norm_num\n```\n\nBut `field_simp` after rewriting `(2009 * (2009 - 1)) / 2009` yields `2009 - 1`. Use `field_simp` with `h2009`. Actually `field_simp` will transform goal `(2009 * (2009 - 1)) / 2009 = 2009 - 1`. It can close automatically.\n\nLet's produce final proof:\n\n```\nby\n  have hcalc : (2009 ^ 2 - 2009) / 2009 = (2008 : ℝ) := by\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    calc\n      (2009 ^ 2 - 2009) / 2009\n          = ((2009 * 2009) - 2009) / 2009 := by simpa [pow_two]\n      _ = (2009 * (2009 - 1)) / 2009 := by ring\n      _ = 2009 - 1 := by\n        field_simp [h2009]\n      _ = 2008 := by norm_num\n  -- now use h to rewrite x\n  simpa [h] using hcalc.symm? Wait we have h: x = expression. Want x = 2008.\n  From hcalc we have expression = 2008. So combine:\n  have : x = 2008 := by\n    calc\n      x = (2009 ^ 2 - 2009) / 2009 := h\n      _ = 2008 := hcalc\n  exact this\n```\n\nSimplify: we can directly `simpa [h] using hcalc`. Actually `hcalc` is expression = 2008. If we rewrite using `h` we need expression = 2008, but we have x = expression. So we can do:\n\n```\n  have : x = 2008 := by\n    simpa [h] using hcalc\n  exact this\n```\n\nBut `hcalc` is `(2009 ^ 2 - 2009) / 2009 = 2008`. `simpa [h] using hcalc` will rewrite left side using `h.symm`? Wait `h` is `x = ...`. So rewriting `(2009 ^ 2 - 2009) / 2009` to `x` using `←h`. `simpa [h]` will replace `(2009 ^ 2 - 2009) / 2009` with `x` because `h` is a rewrite rule? `simp` uses rewriting both sides? `simp [h]` will rewrite occurrences of `x` with RHS, not RHS with x. Actually `simp` uses lemmas as rewrite rules oriented from left to right by default. `h` is `x = ...`, left side `x`. So rewriting `x` to RHS. But we need to replace RHS with `x`. Could use `simp [←h]`. So:\n\n```\n  have : x = 2008 := by\n    simpa [←h] using hcalc\n```\n\nBecause `←h` is `... = x`. So rewriting RHS expression to `x`. So final.\n\nThus final Lean code:\n\n```\nimport Mathlib\n\n/-- What is the value of `x` if `x = (2009 ^ 2 - 2009) / 2009`? Show that it is `2008`. -/\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  have hcalc : (2009 ^ 2 - 2009) / 2009 = (2008 : ℝ) := by\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    calc\n      (2009 ^ 2 - 2009) / 2009\n          = ((2009 * 2009) - 2009) / 2009 := by\n            simpa [pow_two]\n      _ = (2009 * (2009 - 1)) / 2009 := by\n            ring\n      _ = 2009 - 1 := by\n            field_simp [h2009]\n      _ = 2008 := by norm_num\n  simpa [←h] using hcalc\n```\n\nCheck imports: `Mathlib` includes `norm_num`, `ring`, `field_simp`. Should compile.\n\nReturn as code block.",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to fill Lean proof. The statement: theorem p02_frac_cancel (x : ℝ) (h : x = (2005? actually 2009) ^ 2 - 2009) / 2009) : x = 2008.\n\nWe need to prove equality using arithmetic simplification. Use ring or field simplifications.\n\nWe have real numbers. Compute (2009 ^ 2 - 2009) / 2009 = (2009*(2009-1))/2009 = 2009-1 = 2008, provided 2009 ≠ 0. Real numbers, 2009 is nonzero.\n\nWe can use `field_simp` or `ring`. Use `have` rewriting.\n\nLean code:\n\n```\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  have h' : (2009 ^ 2 - 2009) / 2009 = 2008 := by\n    field_simp [pow_two, mul_comm, mul_left_comm, mul_assoc] \n  -- but need to compute.\n```\n\nLet's compute: 2009 ^ 2 = 2009 * 2009. So (2009*2009 - 2009) / 2009 = (2009*(2009-1))/2009 = 2009-1 = 2008.\n\nWe can use `ring` after clearing denominator: `field_simp` does it.\n\nImplementation:\n\n```\n  have hcalc : (2009 ^ 2 - 2009) / 2009 = 2008 := by\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    field_simp [pow_two, h2009] \n    ring\n```\n\nBut `field_simp` expects a goal of equality after simplification? Actually `field_simp` can transform goal. Let's try:\n\nGoal: `(2009 ^ 2 - 2009) / 2009 = 2008`. Use `field_simp` to clear denominators: it will turn into `(2009 ^ 2 - 2009) = 2008 * 2009`. Then we can `ring`. So:\n\n```\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    field_simp [pow_two] [h2009] -- not correct syntax\n```\n\n`field_simp` can take `?` but we can just do:\n\n```\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    field_simp [pow_two] at *\n```\n\nBut we need to apply to goal. Use `field_simp [pow_two]` will rewrite goal.\n\nSimpler: Use `ring` after rewriting expression:\n\n```\n    calc\n      (2009 ^ 2 - 2009) / 2009\n          = ((2009 * 2009) - 2009) / 2009 := by simpa [pow_two]\n      _ = (2009 * (2009 - 1)) / 2009 := by ring\n      _ = 2009 - 1 := by\n        have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n        field_simp [h2009]\n      _ = 2008 := by norm_num\n```\n\nBut `field_simp` after rewriting `(2009 * (2009 - 1)) / 2009` yields `2009 - 1`. Use `field_simp` with `h2009`. Actually `field_simp` will transform goal `(2009 * (2009 - 1)) / 2009 = 2009 - 1`. It can close automatically.\n\nLet's produce final proof:\n\n```\nby\n  have hcalc : (2009 ^ 2 - 2009) / 2009 = (2008 : ℝ) := by\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    calc\n      (2009 ^ 2 - 2009) / 2009\n          = ((2009 * 2009) - 2009) / 2009 := by simpa [pow_two]\n      _ = (2009 * (2009 - 1)) / 2009 := by ring\n      _ = 2009 - 1 := by\n        field_simp [h2009]\n      _ = 2008 := by norm_num\n  -- now use h to rewrite x\n  simpa [h] using hcalc.symm? Wait we have h: x = expression. Want x = 2008.\n  From hcalc we have expression = 2008. So combine:\n  have : x = 2008 := by\n    calc\n      x = (2009 ^ 2 - 2009) / 2009 := h\n      _ = 2008 := hcalc\n  exact this\n```\n\nSimplify: we can directly `simpa [h] using hcalc`. Actually `hcalc` is expression = 2008. If we rewrite using `h` we need expression = 2008, but we have x = expression. So we can do:\n\n```\n  have : x = 2008 := by\n    simpa [h] using hcalc\n  exact this\n```\n\nBut `hcalc` is `(2009 ^ 2 - 2009) / 2009 = 2008`. `simpa [h] using hcalc` will rewrite left side using `h.symm`? Wait `h` is `x = ...`. So rewriting `(2009 ^ 2 - 2009) / 2009` to `x` using `←h`. `simpa [h]` will replace `(2009 ^ 2 - 2009) / 2009` with `x` because `h` is a rewrite rule? `simp` uses rewriting both sides? `simp [h]` will rewrite occurrences of `x` with RHS, not RHS with x. Actually `simp` uses lemmas as rewrite rules oriented from left to right by default. `h` is `x = ...`, left side `x`. So rewriting `x` to RHS. But we need to replace RHS with `x`. Could use `simp [←h]`. So:\n\n```\n  have : x = 2008 := by\n    simpa [←h] using hcalc\n```\n\nBecause `←h` is `... = x`. So rewriting RHS expression to `x`. So final.\n\nThus final Lean code:\n\n```\nimport Mathlib\n\n/-- What is the value of `x` if `x = (2009 ^ 2 - 2009) / 2009`? Show that it is `2008`. -/\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  have hcalc : (2009 ^ 2 - 2009) / 2009 = (2008 : ℝ) := by\n    have h2009 : (2009 : ℝ) ≠ 0 := by norm_num\n    calc\n      (2009 ^ 2 - 2009) / 2009\n          = ((2009 * 2009) - 2009) / 2009 := by\n            simpa [pow_two]\n      _ = (2009 * (2009 - 1)) / 2009 := by\n            ring\n      _ = 2009 - 1 := by\n            field_simp [h2009]\n      _ = 2008 := by norm_num\n  simpa [←h] using hcalc\n```\n\nCheck imports: `Mathlib` includes `norm_num`, `ring`, `field_simp`. Should compile.\n\nReturn as code block.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 295,
+          "completion_tokens": 2005,
+          "total_tokens": 2300,
+          "cost": 0.0003497,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 64,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.0003497,
+            "upstream_inference_prompt_cost": 8.85e-06,
+            "upstream_inference_completions_cost": 0.00034085
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1187,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.0003497,
+      "latency_ms": 60689,
+      "status": "ok"
+    },
+    {
+      "call_id": "ced6e0b39c7b4c2497b3744f1f791355",
+      "request": {
+        "model": "openai/gpt-oss-120b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are writing a complete Lean 4 file using Mathlib.\nReturn only the complete Lean code, preferably in one ```lean code block.\nPreserve the theorem names and statements from the challenge.\nDo not use sorry, admit, axioms, or unsafe escapes.\nThe file must compile as-is."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: p02_frac_cancel\nBaseline turn: 2/25\n\nProblem description:\n# p02_frac_cancel\n\nWhat is the value of $x$ if $x = \\dfrac{2009^2 - 2009}{2009}$? Show that it is $2008$.\n\n\nChallenge Lean file:\n```lean\nimport Mathlib\n\n/-- What is the value of `x` if `x = (2009 ^ 2 - 2009) / 2009`? Show that it is `2008`. -/\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  sorry\n\n```\n\nLean compiler feedback from the previous candidate:\n```text\nerror at {'line': 6, 'column': 4}: 'calc' expression has type\n  ((2009 : ℕ) ^ 2 - 2009) / 2009 = 2008\nbut is expected to have type\n  ((2009 : ℝ) ^ 2 - 2009) / 2009 = 2008\n\nwarning at {'line': 9, 'column': 12}: try 'simp' instead of 'simpa'\n\nNote: This linter can be disabled with `set_option linter.unnecessarySimpa false`\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": false,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.1,
+            "completion": 0.5
+          }
+        },
+        "temperature": 0.2
+      },
+      "started_at": "2026-08-23T20:56:09.018235+00:00",
+      "reserved_cost_usd": 0.0067536700000000015,
+      "response": {
+        "id": "gen-1787518569-zD4rLhVSJDvgeO5rYYm6",
+        "object": "chat.completion",
+        "created": 1787518569,
+        "model": "openai/gpt-oss-120b",
+        "provider": "CoreWeave",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "```lean\nimport Mathlib\n\n/-- What is the value of `x` if `x = (2009 ^ 2 - 2009) / 2009`? Show that it is `2008`. -/\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  calc\n    x = (2009 ^ 2 - 2009) / 2009 := h\n    _ = 2008 := by\n      field_simp [pow_two]\n      norm_num\n```\n",
+              "refusal": null,
+              "reasoning": "We need to fill theorem proof. The statement: theorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008.\n\nWe need to compute expression. Since 2009 is a natural number, but used in ℝ context. In Lean, 2009 : ℝ via coercion. So (2009 ^ 2 - 2009) / 2009 =? compute.\n\nWe can use ring or field simplifications: have (a^2 - a)/a = a - 1 when a ≠ 0. Since 2009 ≠ 0. So we can rewrite.\n\nSimplify using `field_simp` or `ring`. Use `simp` with `pow_two`. Let's attempt:\n\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  have h' : (2009 : ℝ) ≠ 0 := by norm_num\n  -- rewrite expression\n  have : (2009 ^ 2 - 2009) / (2009 : ℝ) = 2008 := by\n    field_simp [pow_two, h'] -- but field_simp may produce rational expression.\n  -- then use h to rewrite x.\n  simpa [h] using this? Actually we have x = expression, want x = 2008. So we can rewrite using h: \n  calc\n    x = (2009 ^ 2 - 2009) / 2009 := h\n    _ = 2008 := by\n      have h0 : (2009 : ℝ) ≠ 0 := by norm_num\n      field_simp [pow_two, h0]\n  done.\n\nBut need to ensure `field_simp` works with `pow_two`. `pow_two` lemma: `a ^ 2 = a * a`. So expression becomes ((2009 * 2009) - 2009) / 2009 = (2009 * 2009 - 2009) / 2009 = (2009 * (2009 - 1)) / 2009 = 2009 - 1 = 2008. `field_simp` may produce that.\n\nLet's test mental: `field_simp [pow_two]` on expression `((2009 : ℝ) ^ 2 - 2009) / 2009`. It will rewrite ^2 to * and then cancel denominator.\n\nBut we need to provide explicit proof.\n\nImplementation:\n\nby\n  have h0 : (2009 : ℝ) ≠ 0 := by norm_num\n  calc\n    x = (2009 ^ 2 - 2009) / 2009 := h\n    _ = 2008 := by\n      field_simp [pow_two, h0]\n\nWill `field_simp` accept `h0` as a hypothesis? Usually `field_simp` can use `h0` automatically if we provide `field_simp [pow_two]`. It may need `ring` after simplification. Let's test: `field_simp [pow_two]` on expression `((2009 : ℝ) ^ 2 - 2009) / 2009`. It will rewrite to `((2009 * 2009) - 2009) / 2009`. Then `field_simp` will multiply numerator and denominator? Actually `field_simp` simplifies rational expressions using `ring`. It will cancel denominator: `(2009 * 2009 - 2009) / 2009 = 2009 - 1` after factoring? Not sure.\n\nAlternative: use `simp` with `div_eq_mul_inv` and `mul_comm` etc.\n\nSimpler: compute directly using `ring` after rewriting:\n\nby\n  have : (2009 : ℝ) ≠ 0 := by norm_num\n  have : (2009 ^ 2 - 2009) / (2009 : ℝ) = 2008 := by\n    field_simp [pow_two] -- should give result\n  simpa [h] using this\n\nBut we need to produce final equality.\n\nLet's craft final code:\n\n```lean\nimport Mathlib\n\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  have h0 : (2009 : ℝ) ≠ 0 := by norm_num\n  calc\n    x = (2009 ^ 2 - 2009) / 2009 := h\n    _ = 2008 := by\n      field_simp [pow_two, h0]\n```\n\nWill `field_simp` accept `h0` as a lemma? Usually you can write `field_simp [pow_two]` and it will automatically use `norm_num` to discharge nonzero denominators. But we can include `h0` in the `field_simp` call: `field_simp [pow_two]` may produce goal `2009 ≠ 0`. It can solve by `norm_num`. So we can just do `field_simp [pow_two]`. Let's test: `field_simp [pow_two]` on expression yields `2009 - 1`. Then `simp` reduces to `2008`. Actually after `field_simp`, the goal becomes `2009 - 1 = 2008`. `norm_num` solves.\n\nBut we can combine: `field_simp [pow_two]` then `norm_num`. Use `by\n      field_simp [pow_two] ; norm_num`.\n\nThus:\n\n```lean\n    _ = 2008 := by\n      field_simp [pow_two] \n      norm_num\n```\n\nBut `field_simp` will change goal to `2009 - 1 = 2008`. Then `norm_num` solves.\n\nLet's produce final code:\n\n```lean\nimport Mathlib\n\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  calc\n    x = (2009 ^ 2 - 2009) / 2009 := h\n    _ = 2008 := by\n      field_simp [pow_two] \n      norm_num\n```\n\nWill `field_simp` need `pow_two` imported? It's in core. Should be fine.\n\nCheck types: `2009` is a `ℝ` after coercion. `pow_two` lemma works for any semiring: `a ^ 2 = a * a`. So fine.\n\n`field_simp` may need `ring` after. The `norm_num` solves final equality.\n\nThus final answer.",
+              "reasoning_details": [
+                {
+                  "type": "reasoning.text",
+                  "text": "We need to fill theorem proof. The statement: theorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008.\n\nWe need to compute expression. Since 2009 is a natural number, but used in ℝ context. In Lean, 2009 : ℝ via coercion. So (2009 ^ 2 - 2009) / 2009 =? compute.\n\nWe can use ring or field simplifications: have (a^2 - a)/a = a - 1 when a ≠ 0. Since 2009 ≠ 0. So we can rewrite.\n\nSimplify using `field_simp` or `ring`. Use `simp` with `pow_two`. Let's attempt:\n\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  have h' : (2009 : ℝ) ≠ 0 := by norm_num\n  -- rewrite expression\n  have : (2009 ^ 2 - 2009) / (2009 : ℝ) = 2008 := by\n    field_simp [pow_two, h'] -- but field_simp may produce rational expression.\n  -- then use h to rewrite x.\n  simpa [h] using this? Actually we have x = expression, want x = 2008. So we can rewrite using h: \n  calc\n    x = (2009 ^ 2 - 2009) / 2009 := h\n    _ = 2008 := by\n      have h0 : (2009 : ℝ) ≠ 0 := by norm_num\n      field_simp [pow_two, h0]\n  done.\n\nBut need to ensure `field_simp` works with `pow_two`. `pow_two` lemma: `a ^ 2 = a * a`. So expression becomes ((2009 * 2009) - 2009) / 2009 = (2009 * 2009 - 2009) / 2009 = (2009 * (2009 - 1)) / 2009 = 2009 - 1 = 2008. `field_simp` may produce that.\n\nLet's test mental: `field_simp [pow_two]` on expression `((2009 : ℝ) ^ 2 - 2009) / 2009`. It will rewrite ^2 to * and then cancel denominator.\n\nBut we need to provide explicit proof.\n\nImplementation:\n\nby\n  have h0 : (2009 : ℝ) ≠ 0 := by norm_num\n  calc\n    x = (2009 ^ 2 - 2009) / 2009 := h\n    _ = 2008 := by\n      field_simp [pow_two, h0]\n\nWill `field_simp` accept `h0` as a hypothesis? Usually `field_simp` can use `h0` automatically if we provide `field_simp [pow_two]`. It may need `ring` after simplification. Let's test: `field_simp [pow_two]` on expression `((2009 : ℝ) ^ 2 - 2009) / 2009`. It will rewrite to `((2009 * 2009) - 2009) / 2009`. Then `field_simp` will multiply numerator and denominator? Actually `field_simp` simplifies rational expressions using `ring`. It will cancel denominator: `(2009 * 2009 - 2009) / 2009 = 2009 - 1` after factoring? Not sure.\n\nAlternative: use `simp` with `div_eq_mul_inv` and `mul_comm` etc.\n\nSimpler: compute directly using `ring` after rewriting:\n\nby\n  have : (2009 : ℝ) ≠ 0 := by norm_num\n  have : (2009 ^ 2 - 2009) / (2009 : ℝ) = 2008 := by\n    field_simp [pow_two] -- should give result\n  simpa [h] using this\n\nBut we need to produce final equality.\n\nLet's craft final code:\n\n```lean\nimport Mathlib\n\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  have h0 : (2009 : ℝ) ≠ 0 := by norm_num\n  calc\n    x = (2009 ^ 2 - 2009) / 2009 := h\n    _ = 2008 := by\n      field_simp [pow_two, h0]\n```\n\nWill `field_simp` accept `h0` as a lemma? Usually you can write `field_simp [pow_two]` and it will automatically use `norm_num` to discharge nonzero denominators. But we can include `h0` in the `field_simp` call: `field_simp [pow_two]` may produce goal `2009 ≠ 0`. It can solve by `norm_num`. So we can just do `field_simp [pow_two]`. Let's test: `field_simp [pow_two]` on expression yields `2009 - 1`. Then `simp` reduces to `2008`. Actually after `field_simp`, the goal becomes `2009 - 1 = 2008`. `norm_num` solves.\n\nBut we can combine: `field_simp [pow_two]` then `norm_num`. Use `by\n      field_simp [pow_two] ; norm_num`.\n\nThus:\n\n```lean\n    _ = 2008 := by\n      field_simp [pow_two] \n      norm_num\n```\n\nBut `field_simp` will change goal to `2009 - 1 = 2008`. Then `norm_num` solves.\n\nLet's produce final code:\n\n```lean\nimport Mathlib\n\ntheorem p02_frac_cancel (x : ℝ) (h : x = (2009 ^ 2 - 2009) / 2009) : x = 2008 := by\n  calc\n    x = (2009 ^ 2 - 2009) / 2009 := h\n    _ = 2008 := by\n      field_simp [pow_two] \n      norm_num\n```\n\nWill `field_simp` need `pow_two` imported? It's in core. Should be fine.\n\nCheck types: `2009` is a `ℝ` after coercion. `pow_two` lemma works for any semiring: `a ^ 2 = a * a`. So fine.\n\n`field_simp` may need `ring` after. The `norm_num` solves final equality.\n\nThus final answer.",
+                  "format": "unknown",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 430,
+          "completion_tokens": 1618,
+          "total_tokens": 2048,
+          "cost": 0.00028796,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 64,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00028796,
+            "upstream_inference_prompt_cost": 1.29e-05,
+            "upstream_inference_completions_cost": 0.00027506
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1066,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.00028796,
+      "latency_ms": 46666,
+      "status": "ok"
+    }
+  ],
+  "actual_cost_usd": 0.00063766
+}

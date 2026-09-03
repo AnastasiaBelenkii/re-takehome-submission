@@ -14,7 +14,7 @@ from collaboration_engine_v2.strategies import NoCollaboration
 from re_harness import Problem, Services
 from re_harness.events import EventLogger
 from re_harness.config import HarnessSettings
-from re_harness.lean import LeanClient, compare_solution
+from re_harness.lean import LeanClient, compare_solution, pristine_import_block
 from re_harness.manifest import ProblemSpec, load_problem_set
 from re_harness.models import MODEL_A, MODEL_B
 from re_harness.runner import run
@@ -56,15 +56,17 @@ def test_real_repl_valid_invalid_timeout_and_restart(tmp_path):
 
 def test_real_repl_uses_pristine_import_environment(tmp_path):
     async def exercise() -> None:
+        challenge = Path("sample-problems/rmo_2000_6/challenge.lean").read_text()
+        imports = "import Mathlib.Data.Nat.Basic\nimport Mathlib.Order.Bounds.Basic"
         client = LeanClient(
             image=IMAGE or "",
             events=EventLogger(tmp_path / "events.jsonl", problem_id="narrow-imports"),
             timeout_s=30,
-            base_imports="import Mathlib.Order.Bounds.Basic",
+            base_imports=pristine_import_block(challenge),
         )
         try:
             valid = await client.check_file(
-                "import Mathlib.Order.Bounds.Basic\n\ntheorem narrow_ok : True := by trivial"
+                imports + "\n\ntheorem narrow_ok : True := by trivial"
             )
             assert valid.accepted
         finally:

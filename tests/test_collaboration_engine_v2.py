@@ -26,8 +26,11 @@ from collaboration_engine_v2.tactics import (
     tactic_candidate,
 )
 from re_harness import Problem
+from re_harness.events import EventLogger
+from re_harness.lean import pristine_import_block
 from re_harness.llm import CostFreeRateLimitError, LLMCallError
 from re_harness.models import MODEL_A, MODEL_B
+from re_harness.worker import _create_warm_lean_client
 
 ROOT = Path(__file__).parents[1]
 
@@ -427,6 +430,49 @@ def test_import_contract_requires_exact_pristine_imports():
     normalized = canonicalize_imports(missing)
     assert normalized.startswith("import Mathlib\n\n")
     assert "Mathlib.This.Does.Not.Exist" not in normalized
+
+
+def test_mathlib_import_canonicalization_is_byte_identical_to_legacy_behavior():
+    candidate = """import Mathlib.This.Does.Not.Exist
+
+theorem p01_linear (x : ℝ) (h : 3 * x + 7 = 22) : x = 5 := by
+  linarith
+"""
+    legacy = """import Mathlib
+
+theorem p01_linear (x : ℝ) (h : 3 * x + 7 = 22) : x = 5 := by
+  linarith
+"""
+    assert canonicalize_imports(candidate) == legacy
+    assert canonicalize_imports(candidate, "import Mathlib") == legacy
+
+
+def test_narrow_pristine_imports_drive_candidate_prompt_and_warm_repl(tmp_path):
+    challenge = (ROOT / "sample-problems/rmo_2000_6/challenge.lean").read_text()
+    imports = "import Mathlib.Data.Nat.Basic\nimport Mathlib.Order.Bounds.Basic"
+    candidate = "import Mathlib\n\ntheorem rmo_2000_6 : True := by trivial\n"
+
+    assert pristine_import_block(challenge) == imports
+    normalized = canonicalize_imports(candidate, pristine_import_block(challenge))
+    assert normalized.startswith(imports + "\n\n")
+    assert "\nimport Mathlib\n" not in normalized
+
+    narrow_problem = Problem(id="rmo_2000_6", description="Prove the theorem", challenge=challenge)
+    state = TrackState(MODEL_A, challenge, calls=1)
+    messages = agent(NoCollaboration())._messages(narrow_problem, state, "direct", None)
+    assert "Use exactly these import lines, unchanged:\n" + imports in messages[0]["content"]
+
+    # Construction is side-effect free; start() is what launches Docker.
+    client = _create_warm_lean_client(
+        {
+            "lean_image": "unused",
+            "session_id": "0" * 32,
+            "lean_check_timeout_s": 120,
+            "challenge": challenge,
+        },
+        EventLogger(tmp_path / "events.jsonl", problem_id="rmo_2000_6"),
+    )
+    assert client.base_imports == imports
 
 
 def test_manifests_only_vary_condition_and_strategy_and_queue_is_frozen():

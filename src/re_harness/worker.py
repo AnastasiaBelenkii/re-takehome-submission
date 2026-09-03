@@ -25,6 +25,7 @@ from .lean import (
     compare_solution,
     cleanup_session_containers,
     numeric_answers_are_literals,
+    pristine_import_block,
 )
 from .llm import LLMClient
 from .manifest import ProblemSpec
@@ -60,6 +61,17 @@ def _verification_reserve(config: dict[str, Any]) -> float:
     return min(desired, float(config["time_limit_s"]) * 0.25)
 
 
+def _create_warm_lean_client(config: dict[str, Any], events: EventLogger) -> LeanClient:
+    """Construct the warm REPL with the challenge's pristine import context."""
+    return LeanClient(
+        image=config["lean_image"],
+        events=events,
+        session_id=config["session_id"],
+        timeout_s=int(config["lean_check_timeout_s"]),
+        base_imports=pristine_import_block(config["challenge"]),
+    )
+
+
 async def _run(config: dict[str, Any]) -> int:
     out_dir = Path(config["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -68,13 +80,8 @@ async def _run(config: dict[str, Any]) -> int:
     events = EventLogger(events_path, problem_id=config["problem_id"], secrets=(api_key,))
     budget = BudgetLedger(float(config["budget_usd"]))
     llm = LLMClient(api_key=api_key, budget=budget, events=events)
-    lean = LeanClient(
-        image=config["lean_image"],
-        events=events,
-        session_id=config["session_id"],
-        timeout_s=int(config["lean_check_timeout_s"]),
-    )
     challenge = config["challenge"]
+    lean = _create_warm_lean_client(config, events)
     spec = ProblemSpec(
         id=config["problem_id"],
         theorem_names=tuple(config["theorem_names"]),

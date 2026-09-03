@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from re_harness.lean import pristine_import_block
+
 TACTIC_CASCADE = "first | omega | norm_num | nlinarith | linarith | ring | aesop | simp_all"
 
 
@@ -118,10 +120,11 @@ def imports_unchanged(challenge: str, candidate: str) -> bool:
     return import_fingerprint(challenge) == import_fingerprint(candidate)
 
 
-def canonicalize_imports(source: str) -> str:
-    """Use the warm REPL's real `Mathlib` context in the submitted file too."""
+def canonicalize_imports(source: str, base_imports: str = "import Mathlib") -> str:
+    """Replace candidate imports with the warm REPL's pristine import block."""
     body = "\n".join(
         line for line in source.splitlines()
         if not line.lstrip().startswith("import ")
     ).lstrip("\n")
-    return "import Mathlib\n\n" + body + ("\n" if body and not body.endswith("\n") else "")
+    imports = pristine_import_block(base_imports)
+    return imports + "\n\n" + body + ("\n" if body and not body.endswith("\n") else "")

@@ -12,6 +12,7 @@ from typing import Any, Callable
 from baselines.simple_agent import _extract_lean
 from re_harness import AgentResult, Problem, Services
 from re_harness.budget import BudgetAccountingError, BudgetExceeded
+from re_harness.lean import pristine_import_block
 from re_harness.llm import CostFreeRateLimitError
 from uplift_pilot.agent import _bounded_excerpt, _diagnostics, _normalized_candidate, _sha256
 
@@ -149,6 +150,7 @@ class CollaborationEngineV2Agent:
 
     async def solve(self, problem: Problem, services: Services) -> AgentResult:
         started = self.clock()
+        base_imports = pristine_import_block(problem.challenge)
         tracks = {model: TrackState(model=model, candidate=problem.challenge) for model in self.models}
         best_candidate = problem.challenge
         best_model: str | None = None
@@ -163,7 +165,7 @@ class CollaborationEngineV2Agent:
 
         call_zero = tactic_candidate(problem.challenge)
         if call_zero is not None:
-            call_zero = canonicalize_imports(call_zero)
+            call_zero = canonicalize_imports(call_zero, base_imports)
             deterministic["attempted"] = True
             deterministic["candidate_sha256"] = _sha256(_normalized_candidate(call_zero))
             check = await services.lean.check_file(call_zero)
@@ -406,7 +408,7 @@ class CollaborationEngineV2Agent:
 
                 extracted = _extract_lean(response.content, fallback=track.candidate)
                 original_imports_ok = imports_unchanged(problem.challenge, extracted)
-                proposal = canonicalize_imports(extracted)
+                proposal = canonicalize_imports(extracted, base_imports)
                 declarations_ok = required_declarations_present(problem.challenge, proposal)
                 imports_normalized = proposal != extracted
                 contract_ok = declarations_ok
@@ -727,10 +729,11 @@ class CollaborationEngineV2Agent:
 
     def _messages(self, problem: Problem, track: TrackState, phase: str,
                   packet: PeerPacket | None) -> list[dict[str, str]]:
+        base_imports = pristine_import_block(problem.challenge)
         system = [
             "Write one complete Lean 4 file using Mathlib.",
             "Return only Lean code, preferably in one ```lean block.",
-            "Use exactly one import line: `import Mathlib`.",
+            "Use exactly these import lines, unchanged:\n" + base_imports,
             "Preserve every declaration name, type/statement, and numeric answer from the pristine challenge.",
             "You may add new helper lemmas or definitions with fresh names.",
             "Do not use sorry, admit, axioms, or unsafe escapes.",

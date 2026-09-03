@@ -26,6 +26,21 @@ class LeanRuntimeError(RuntimeError):
     pass
 
 
+def pristine_import_block(source: str) -> str:
+    """Return the challenge's import lines exactly as written.
+
+    Challenges are complete Lean files, so their imports define the environment
+    in which warm checks must run.  Keep spelling and ordering intact; the
+    ``import Mathlib`` fallback preserves the historical behavior for malformed
+    or synthetic inputs without imports.
+    """
+    imports = [
+        line for line in source.splitlines()
+        if line.lstrip().startswith("import ")
+    ]
+    return "\n".join(imports) or "import Mathlib"
+
+
 @dataclass(frozen=True)
 class LeanCheck:
     accepted: bool

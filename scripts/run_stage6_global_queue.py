@@ -180,18 +180,18 @@ def main() -> int:
             dispatch_dir = args.state.parent / "runtime-dispatch"
             descriptor_file = dispatch_dir / f"{index:03d}-{task_id}.json"
             queue_file = dispatch_dir / f"{index:03d}-{task_id}-queue.json"
+            remote_worker = f"{args.remote_root}/{host}/cells/{task_id}"
             atomic(descriptor_file, descriptor)
             atomic(queue_file, {
                 "schema_version": 1,
                 "experiment": queue["experiment"],
                 "worker": f"takehome-worker-{worker_number}",
-                "descriptors": [f"{args.remote_root}/{host}/descriptor.json"],
+                "descriptors": [f"{remote_worker}/descriptor.json"],
             })
 
             state["tasks"][task_id].update({"status": "dispatching", "at": now(), "worker_host": host})
             state["updated_at"] = now()
             atomic(args.state, state)
-            remote_worker = f"{args.remote_root}/{host}/cells/{task_id}"
             setup = (
                 f"test ! -e {shlex.quote(remote_worker + '/tasks/' + task_id)} && "
                 f"mkdir -p {shlex.quote(remote_worker)}"

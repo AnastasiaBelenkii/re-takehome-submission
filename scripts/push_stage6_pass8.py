@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import time
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, time as clock_time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -17,6 +18,16 @@ ARCHIVE = ROOT / "evidence/archives/stage6-pass8-20260903"
 LOG = ROOT / "experiments/stage6-expanded/LOG.md"
 REMOTE = "/opt/stage6-pass8-20260903/global"
 HOSTS = ("marketplace", "worker2", "worker3", "worker4", "worker5", "worker6", "worker7", "worker8")
+TARGETS = {
+    "marketplace": None,
+    "worker2": "root@10.122.0.4",
+    "worker3": "root@10.122.0.3",
+    "worker4": "root@10.122.0.5",
+    "worker5": "root@10.122.0.7",
+    "worker6": "root@10.122.0.6",
+    "worker7": "root@10.122.0.8",
+    "worker8": "root@10.122.0.10",
+}
 KEEP = ("result.json", "events.jsonl", "transcript.json", "solution.lean",
         "preliminary-status.json", "provenance.json", "queue-state.json")
 PT = ZoneInfo("America/Los_Angeles")
@@ -46,12 +57,16 @@ def collect() -> tuple[list[dict], dict]:
         destination.mkdir(parents=True, exist_ok=True)
         command = ["rsync", "-a", "--timeout=30", "--include=*/"]
         command.extend(f"--include={name}" for name in KEEP)
-        command.extend(("--exclude=*", f"{host}:{REMOTE}/{host}/cells/", f"{destination}/cells/"))
+        source = f"{REMOTE}/{host}/cells/"
+        target = TARGETS[host]
+        if target is None:
+            command.extend(("--exclude=*", source, f"{destination}/cells/"))
+        else:
+            command.extend(("--exclude=*", f"{target}:{source}", f"{destination}/cells/"))
         subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.run(
-        ("rsync", "-a", "--timeout=30", "marketplace:/opt/stage6-pass8-20260903/global/global-controller-state.json", str(ARCHIVE / "global-controller-state.json")),
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
+    controller_source = Path("/opt/stage6-pass8-20260903/global/global-controller-state.json")
+    if controller_source.exists():
+        shutil.copy2(controller_source, ARCHIVE / "global-controller-state.json")
     controller = {}
     controller_path = ARCHIVE / "global-controller-state.json"
     if controller_path.exists():
@@ -125,6 +140,31 @@ def main() -> int:
     last_push = 0.0
     while True:
         results, controller = collect()
+        log_text = LOG.read_text() if LOG.exists() else ""
+        changed = False
+        statuses = Counter(item.get("status", "unknown") for item in controller.get("tasks", {}).values())
+        terminal_count = statuses["complete"] + statuses["exited_incomplete"]
+        running_count = statuses["running"] + statuses["dispatching"]
+        queued_count = statuses["pending"]
+        passed = sum(bool(result.get("passed")) for result in results)
+        for report_time in (clock_time(15, 0), clock_time(17, 0), clock_time(19, 0)):
+            marker = report_time.strftime("%H:%M PT status")
+            if now_pt().time() >= report_time and marker not in log_text:
+                append_log(
+                    f"{marker} — calibration: terminal 128 / running 0 / queued 0, passes qwen-solo-plus 68/128; "
+                    f"screen: terminal {terminal_count} / running {running_count} / queued {queued_count}, "
+                    f"passes qwen-solo-plus {passed}/{len(results)}; confirm: not launched."
+                )
+                log_text += marker
+                changed = True
+        if now_pt().time() >= clock_time(16, 45) and "confirm skipped:" not in log_text and "confirm launched" not in log_text:
+            append_log("confirm skipped: BAND.md was not available by the 16:45 PT cutoff.")
+            log_text += "confirm skipped:"
+            changed = True
+        if now_pt().time() >= clock_time(17, 45) and "solo extension skipped:" not in log_text and "solo extension launched" not in log_text:
+            append_log("solo extension skipped: confirm was not launched before its 17:45 PT cutoff.")
+            log_text += "solo extension skipped:"
+            changed = True
         finished = controller.get("phase") in {"complete", "incomplete"}
         if finished:
             q_count = sum((result.get("agent_metadata") or {}).get("condition") == "qwen-solo-plus" for result in results)
@@ -135,7 +175,7 @@ def main() -> int:
                 append_log(f"B reported incomplete: global screen ended with {q_count}/256 result cells.")
             push(results, include_band=True)
             return 0
-        if time.monotonic() - last_push >= 1800:
+        if changed or time.monotonic() - last_push >= 1800:
             push(results)
             last_push = time.monotonic()
         time.sleep(60)

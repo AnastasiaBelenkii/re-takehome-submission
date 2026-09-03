@@ -1,0 +1,5 @@
+- Requests replayed: 340.
+- Warm-pass rate with packet: 56/170 (32.94%).
+- Warm-pass rate without packet: 47/170 (27.65%).
+- Paired difference (with minus without): +9/170 (+5.29 percentage points; 14 positive, 5 negative, 151 tied pairs).
+- Split by model: GPT-OSS 29/92 (31.52%) with vs 22/92 (23.91%) without, +7.61 pp; Qwen 27/78 (34.62%) with vs 25/78 (32.05%) without, +2.56 pp.

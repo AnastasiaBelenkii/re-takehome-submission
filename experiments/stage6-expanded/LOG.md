@@ -28,3 +28,4 @@
 - 14:22 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 0 cells; passes per arm: qwen-solo-plus 0/0
 - 14:28 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 0 cells; passes per arm: qwen-solo-plus 0/0
 - 14:28 PT — Screen pre-dispatch transport and descriptor-path faults were reconciled before any model request; paid dispatch began at 14:27 PT in unchanged global order.
+- 14:53 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 12 cells; passes per arm: qwen-solo-plus 5/12

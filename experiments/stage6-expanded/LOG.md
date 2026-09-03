@@ -12,3 +12,4 @@
 - 10:47 PT — replay-k8 pushed: 25 Wave C + 22 Wave D requests; wave-a-full pushed: 249 requests.
 - 10:47 PT — PUSH: Archive roots: experiments/analysis/packet-replay-k8.csv and experiments/analysis/packet-replay-wave-a-full.csv; 1748 requests; passes per variant: k8 with 151, without 152; wave-a-full with 14, without 13
 - 10:49 PT — PUSH: Archive root evidence/archives/stage6-calibration-20260903; 0 cells; passes per arm: qwen-solo-plus 0/0
+- 11:19 PT — PUSH: Archive root evidence/archives/stage6-calibration-20260903; 23 cells; passes per arm: qwen-solo-plus 14/23

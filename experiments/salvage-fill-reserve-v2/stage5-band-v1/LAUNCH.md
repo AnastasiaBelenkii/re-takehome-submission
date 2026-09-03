@@ -1,7 +1,7 @@
 # Launch record
 
 - Experiment: `salvage-fill-reserve-v2-stage5-band-v1`
-- Runtime source: `d43af01404ca61a4ffb76bf55f9bb0d227b931af`
+- Runtime source: `d43af0199db14b36e1761efc641aa00c2dbc3ffe`
 - Workers: `takehome-worker-1` through `takehome-worker-8`
 - Main ITT cells: 96
 - New operational p03/1729 cells: 2, excluded from main ITT matrix

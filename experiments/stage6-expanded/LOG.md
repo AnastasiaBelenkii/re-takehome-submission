@@ -5,3 +5,4 @@
 - 08:45 PT — stage6 plan pushed, 32 statements survive compile.
 - 08:34 PT — PUSH: Archive roots: experiments/analysis/packet-replay-k8.csv and experiments/analysis/packet-replay-wave-a-full.csv; 0 requests; passes per variant: k8 with 0, without 0; wave-a-full with 0, without 0
 - 09:04 PT — PUSH: Archive roots: experiments/analysis/packet-replay-k8.csv and experiments/analysis/packet-replay-wave-a-full.csv; 615 requests; passes per variant: k8 with 70, without 70; wave-a-full with 4, without 3
+- 09:35 PT — PUSH: Archive roots: experiments/analysis/packet-replay-k8.csv and experiments/analysis/packet-replay-wave-a-full.csv; 1168 requests; passes per variant: k8 with 138, without 139; wave-a-full with 7, without 6

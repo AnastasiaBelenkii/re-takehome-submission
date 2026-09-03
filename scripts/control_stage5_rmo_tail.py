@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dispatch the fixed rmo tail after all main Wave D cells are dispatched."""
+"""Dispatch the fixed rmo tail after Wave D and packet replay complete."""
 
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ WORKERS = [f"takehome-worker-{index}" for index in range(1, 9)]
 REMOTE_WORKTREE = Path("/opt/sfrv2-importfix-853884e-stage5-tail-20260903/checkout")
 REMOTE_ROOT = Path("/opt/salvage-fill-reserve-v2-stage5-rmo-tail-v1-20260903")
 START = datetime.fromisoformat("2026-09-03T09:30:00+00:00")
-STOP = datetime.fromisoformat("2026-09-03T11:00:00+00:00")
 MAIN_STATE = Path("/tmp/stage5-band-controller-state.json")
+REPLAY_COMPLETE = Path("/tmp/stage5-packet-replay-complete.json")
 
 
 def main_fully_dispatched() -> bool:
@@ -81,8 +81,15 @@ def main() -> int:
             return 0
 
         current = datetime.now(timezone.utc)
-        tail_ready = current >= START and main_fully_dispatched()
-        state["phase"] = "running" if tail_ready else "waiting_for_main_dispatch"
+        main_dispatched = main_fully_dispatched()
+        replay_complete = REPLAY_COMPLETE.exists()
+        tail_ready = current >= START and main_dispatched and replay_complete
+        if tail_ready:
+            state["phase"] = "running"
+        elif main_dispatched:
+            state["phase"] = "waiting_for_packet_replay"
+        else:
+            state["phase"] = "waiting_for_main_dispatch"
         incomplete = 0
         next_block = None
         for block in blocks:
@@ -93,7 +100,7 @@ def main() -> int:
             elif all(status == "pending" for status in statuses) and next_block is None:
                 next_block = block
 
-        if tail_ready and current < STOP and next_block is not None and incomplete < 2:
+        if tail_ready and next_block is not None and incomplete < 2:
             assigned = {
                 cell.get("worker") for cell in state["cells"].values()
                 if cell["status"] in {"dispatching", "running"}

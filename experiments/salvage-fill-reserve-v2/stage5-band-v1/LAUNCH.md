@@ -18,8 +18,9 @@ rmo tail waits until every main-matrix cell has been dispatched, so it cannot
 compete with the main queue.
 
 Evidence snapshots are scheduled for 03:15 PT and 04:00 PT. The rmo tail is
-strictly non-interleaved and launches only after the final main cell dispatches;
-no new tail cell launches at or after 04:00 PT, and running cells are not killed.
+strictly non-interleaved and launches only after the final main cell dispatches
+and the capped counterfactual packet replay completes. The tail remains queued
+through the replay; running cells are never killed.
 
 The failed p07 canary gate is retired by the final 01:10 PT plan. It was
 uninformative because neither agent found a warm-accepted candidate, so no

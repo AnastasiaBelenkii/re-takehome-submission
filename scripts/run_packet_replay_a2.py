@@ -25,7 +25,6 @@ sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
 
 from baselines.simple_agent import _extract_lean
 from collaboration_engine_v2.experiment import LEAN_IMAGE
-from collaboration_engine_v2.tactics import canonicalize_imports
 from re_harness.budget import BudgetExceeded, BudgetLedger
 from re_harness.events import EventLogger
 from re_harness.lean import LeanClient
@@ -51,6 +50,17 @@ CSV_FIELDS = (
 
 def sha(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def canonicalize_for_replay(source: str, base_imports: str) -> str:
+    """Match the import-fix behavior without depending on the runtime commit."""
+    body = "\n".join(
+        line for line in source.splitlines()
+        if not line.lstrip().startswith("import ")
+    ).lstrip("\n")
+    return base_imports.rstrip() + "\n\n" + body + (
+        "\n" if body and not body.endswith("\n") else ""
+    )
 
 
 def atomic_json(path: Path, value: Any) -> None:
@@ -100,7 +110,9 @@ def prior_checkpoint(output_dir: Path) -> tuple[list[dict[str, Any]], float]:
     csv_path = output_dir / "packet-replay.csv"
     if csv_path.exists():
         with csv_path.open(newline="") as handle:
-            rows = [row for row in csv.DictReader(handle) if not row.get("error")]
+            # A paid request is terminal even if local post-processing failed.
+            # Keeping error rows prevents a resume from dispatching it again.
+            rows = list(csv.DictReader(handle))
     prior_spend = 0.0
     result_path = output_dir / "result.json"
     if result_path.exists():
@@ -165,6 +177,49 @@ async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
             )
         return lean_clients[imports]
 
+    async def recover_prior_postprocessing_errors() -> None:
+        """Warm-check paid responses whose first launcher failed after receipt."""
+        targets = {
+            row.get("response_id"): row for row in rows
+            if row.get("error", "").startswith("TypeError: canonicalize_imports")
+            and row.get("response_id")
+        }
+        if not targets:
+            return
+        responses: dict[str, str] = {}
+        events_path = output_dir / "events.jsonl"
+        if events_path.exists():
+            for line in events_path.read_text().splitlines():
+                try:
+                    event = json.loads(line)
+                    response = event.get("response") or {}
+                    response_id = str(response.get("id", ""))
+                    if response_id in targets:
+                        responses[response_id] = str(
+                            response["choices"][0]["message"].get("content", "")
+                        )
+                except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+                    continue
+        records = {record["source_call_id"]: record for record in manifest["records"]}
+        for response_id, row in targets.items():
+            if response_id not in responses:
+                continue
+            record = records[row["source_call_id"]]
+            candidate = canonicalize_for_replay(
+                _extract_lean(responses[response_id], fallback=record["challenge"]),
+                record["base_imports"],
+            )
+            check = await lean_for(record["base_imports"]).check_file(candidate, timeout_s=120)
+            row.update({
+                "warm_accepted": check.accepted,
+                "warm_timed_out": check.timed_out,
+                "warm_duration_ms": check.duration_ms,
+                "warm_message_count": len(check.messages),
+                "candidate_sha256": sha(candidate),
+                "error": "",
+            })
+        write_csv(csv_path, rows)
+
     async def worker() -> None:
         while not failure:
             try:
@@ -184,7 +239,7 @@ async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
             try:
                 kwargs = {key: request[key] for key in REQUEST_KEYS if key in request}
                 response = await llm.complete(timeout_s=420, **kwargs)
-                candidate = canonicalize_imports(
+                candidate = canonicalize_for_replay(
                     _extract_lean(response.content, fallback=record["challenge"]),
                     record["base_imports"],
                 )
@@ -231,7 +286,7 @@ async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
                 atomic_json(output_dir / "status.json", {
                     "experiment": manifest["experiment"],
                     "planned_jobs": len(all_jobs),
-                    "completed_rows": sum(not row.get("error") for row in rows),
+                    "completed_rows": len(rows),
                     "queued_jobs": queue.qsize(),
                     "budget": budget_status(),
                     "failure": failure[0] if failure else None,
@@ -239,21 +294,23 @@ async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
             queue.task_done()
 
     try:
+        await recover_prior_postprocessing_errors()
         await asyncio.gather(*(worker() for _ in range(concurrency)))
     finally:
         for lean in lean_clients.values():
             lean.close()
         await llm.aclose()
-    successful = sum(not row.get("error") for row in rows)
+    completed_rows = len(rows)
     status = "failed" if failure else (
-        "complete" if successful == len(all_jobs) else "budget_cap"
+        "complete" if completed_rows == len(all_jobs) else "budget_cap"
     )
     atomic_json(output_dir / "result.json", {
         "experiment": manifest["experiment"],
         "status": status,
         "planned_jobs": len(all_jobs),
-        "completed_rows": successful,
-        "remaining_jobs": len(all_jobs) - successful,
+        "completed_rows": completed_rows,
+        "error_rows": sum(bool(row.get("error")) for row in rows),
+        "remaining_jobs": len(all_jobs) - completed_rows,
         "budget": budget_status(),
         "cumulative_spent_usd": budget_status()["spent_usd"],
         "failure": failure[0] if failure else None,

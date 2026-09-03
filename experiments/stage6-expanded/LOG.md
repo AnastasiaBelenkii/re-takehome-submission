@@ -20,3 +20,4 @@
 - 13:20 PT — C and C.2 cancelled by owner; neither will be queued or launched.
 - 13:50 PT — PUSH: Archive root evidence/archives/stage6-calibration-20260903; 126 cells; passes per arm: qwen-solo-plus 67/126
 - 14:11 PT — screen launched 14:11 on 8 workers.
+- 14:12 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 0 cells; passes per arm: 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from collaboration_engine_v2.agent import CollaborationEngineV2Agent
+from submission.agent import create_agent as create_submission_agent
 from submission.candidates import CANDIDATE_FACTORIES
 
 
@@ -40,3 +42,17 @@ def test_candidate_cutoff_tracks_evaluator_time_limit(monkeypatch):
     monkeypatch.setenv("VM_TIME_LIMIT_S", "1800")
     monkeypatch.delenv("COLLAB_DISPATCH_CUTOFF_S", raising=False)
     assert CANDIDATE_FACTORIES["c2"]().dispatch_cutoff_s == 1080
+
+
+def test_default_submission_promotes_c1plus_fill_reserve(monkeypatch):
+    monkeypatch.setenv("VM_TIME_LIMIT_S", "28800")
+    monkeypatch.delenv("COLLAB_DISPATCH_CUTOFF_S", raising=False)
+
+    agent = create_submission_agent()
+
+    assert isinstance(agent, CollaborationEngineV2Agent)
+    assert agent.condition == "c1plus-fill-reserve"
+    assert agent.strategy.strategy_id == "progress-fill-event-latest-v2"
+    assert agent.enable_salvage is True
+    assert agent.fast_track_reserved_calls == 1
+    assert agent.dispatch_cutoff_s == 28080

@@ -8,9 +8,20 @@
 - Prior p07/1729 canaries: 2, separately archived extra portfolio-arm cells
 - Scheduling: continuous availability-aware dispatch, at most eight cells and two incomplete four-arm blocks
 - Evidence destination: `evidence/archives/stage5-band-20260903/`
-- Status: frozen; dispatch pending
+- Remote result root: `/opt/salvage-fill-reserve-v2-stage5-band4-v1-20260903`
+- First dispatch: 2026-09-03 00:28 PT
+- Status: released without a gate; continuous dispatch active
 
 The failed p07 canary gate is retired by the final 01:10 PT plan. It was
 uninformative because neither agent found a warm-accepted candidate, so no
 verification could start. Wave D is released without a gate. Existing paid
 cells are never interrupted, and fixed block order is never adapted to results.
+
+At 00:30 PT, dispatch paused after the observation pair exceeded the planned
+"warm accepted plus five later calls" alert. Live `worker-config.json` and the
+worker process environment both contained Comparator timeout 420s,
+verification reserve 480s, and outer time 2100s. Both cells had active fresh
+Comparator containers. Dispatch resumed at 00:31 PT without changing the
+environment: the alert detects a slow asynchronous Comparator, not missing
+environment propagation. The first C0+ in-agent verification passed in
+205.6s, and both p03 observation cells ultimately passed.

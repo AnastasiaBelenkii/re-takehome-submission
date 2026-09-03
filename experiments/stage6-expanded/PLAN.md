@@ -70,7 +70,9 @@ only on a Comparator pass: 256 cells. Global order is seed-major then the 32
 problems above; global indices are round-robin over workers 1–8 so any cutoff
 covers the problem list evenly. If Qwen completes with time before the launch
 deadline, append `gptoss-solo-plus` at seeds 7001–7004 in the same order: 128
-cells. No pending cell may dispatch at or after 14:00 PT.
+cells. “Wall time allows” is fixed before outcomes are seen: GPT-OSS launches
+iff all 256 Qwen cells finish by 12:15 PT. No pending cell may dispatch at or
+after 14:00 PT.
 
 Other settings match Wave D: temperature 0.2, 12,000 generation tokens, $1 per
 cell, 120-second warm Lean, 420-second Comparator, 960-second dispatch cutoff,

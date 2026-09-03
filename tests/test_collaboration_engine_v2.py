@@ -480,6 +480,31 @@ async def test_c0_c1_c2_first_round_requests_are_byte_identical_for_paired_seed(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("model", [MODEL_A, MODEL_B])
+async def test_single_track_dispatches_only_its_model_without_peer_or_packets(model):
+    solo_problem = Problem(
+        id="answer",
+        description="Return 1",
+        challenge="import Mathlib\nabbrev answer : ℕ := sorry\n",
+    )
+    proposal = "import Mathlib\nabbrev answer : ℕ := 2\n"
+    services = Services({model: [proposal]}, [False])
+
+    result = await agent(
+        NoCollaboration(),
+        models=(model,),
+        max_calls_per_model=1,
+        enable_salvage=True,
+        fast_track_reserved_calls=0,
+    ).solve(solo_problem, services)
+
+    assert [request["model"] for request in services.llm.requests] == [model]
+    assert set(result.metadata["tracks"]) == {model}
+    assert result.metadata["packet_events"] == []
+    assert result.metadata["tracks"][model]["pending_peer_packets"] == 0
+
+
+@pytest.mark.asyncio
 async def test_fast_track_advances_without_waiting_and_packets_keep_provenance():
     responses = {
         MODEL_A: [(0.001, source(f"a{i}")) for i in range(3)],

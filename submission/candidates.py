@@ -22,6 +22,7 @@ class Candidate:
     strategy: str
     salvage: bool
     fast_track_reserved_calls: int
+    models: tuple[str, ...] = MODELS
 
 
 CANDIDATES = {
@@ -32,6 +33,8 @@ CANDIDATES = {
     "c1plus-fill-reserve": Candidate(
         "c1plus-fill-reserve", "progress-fill-event-latest-v2", True, 1
     ),
+    "qwen-solo-plus": Candidate("qwen-solo-plus", "none", True, 0, (MODELS[0],)),
+    "gptoss-solo-plus": Candidate("gptoss-solo-plus", "none", True, 0, (MODELS[1],)),
 }
 
 
@@ -49,8 +52,9 @@ def create_candidate(condition: str) -> CollaborationEngineV2Agent:
     ceiling = None if raw_ceiling == "unlimited" else int(raw_ceiling)
     packet_chars = _integer("COLLAB_PEER_PACKET_CHARS", 6000)
     return CollaborationEngineV2Agent(
-        strategy=create_strategy(spec.strategy, packet_chars=packet_chars, models=MODELS),
+        strategy=create_strategy(spec.strategy, packet_chars=packet_chars, models=spec.models),
         condition=spec.condition,
+        models=spec.models,
         max_calls_per_model=ceiling,
         generation_max_tokens=_integer("COLLAB_GENERATION_MAX_TOKENS", 12000),
         temperature=float(os.environ.get("COLLAB_TEMPERATURE", "0.2")),
@@ -95,10 +99,20 @@ def create_c1plus_fill_reserve_agent() -> CollaborationEngineV2Agent:
     return create_candidate("c1plus-fill-reserve")
 
 
+def create_qwen_solo_plus_agent() -> CollaborationEngineV2Agent:
+    return create_candidate("qwen-solo-plus")
+
+
+def create_gptoss_solo_plus_agent() -> CollaborationEngineV2Agent:
+    return create_candidate("gptoss-solo-plus")
+
+
 CANDIDATE_FACTORIES: dict[str, Callable[[], CollaborationEngineV2Agent]] = {
     "c0": create_c0_agent,
     "c1": create_c1_agent,
     "c2": create_c2_agent,
     "c0plus-reserve": create_c0plus_reserve_agent,
     "c1plus-fill-reserve": create_c1plus_fill_reserve_agent,
+    "qwen-solo-plus": create_qwen_solo_plus_agent,
+    "gptoss-solo-plus": create_gptoss_solo_plus_agent,
 }

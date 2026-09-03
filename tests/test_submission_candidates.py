@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from collaboration_engine_v2.agent import CollaborationEngineV2Agent
+from re_harness.models import MODEL_A, MODEL_B
 from submission.agent import create_agent as create_submission_agent
 from submission.candidates import CANDIDATE_FACTORIES
 
@@ -15,6 +16,8 @@ from submission.candidates import CANDIDATE_FACTORIES
         ("c2", "reciprocal-every-eligible-v1", False, 0),
         ("c0plus-reserve", "none", True, 1),
         ("c1plus-fill-reserve", "progress-fill-event-latest-v2", True, 1),
+        ("qwen-solo-plus", "none", True, 0),
+        ("gptoss-solo-plus", "none", True, 0),
     ],
 )
 def test_candidate_factory_has_judge_defaults(
@@ -36,6 +39,19 @@ def test_candidate_factory_has_judge_defaults(
     assert agent.fast_track_reserved_calls == reserve
     assert agent.max_calls_per_model is None
     assert agent.dispatch_cutoff_s == 28080
+
+
+@pytest.mark.parametrize(
+    ("condition", "model"),
+    [("qwen-solo-plus", MODEL_A), ("gptoss-solo-plus", MODEL_B)],
+)
+def test_solo_candidate_has_exactly_one_model_and_no_packet_path(condition, model):
+    agent = CANDIDATE_FACTORIES[condition]()
+
+    assert agent.models == (model,)
+    assert agent.strategy.strategy_id == "none"
+    assert agent.enable_salvage is True
+    assert agent.fast_track_reserved_calls == 0
 
 
 def test_candidate_cutoff_tracks_evaluator_time_limit(monkeypatch):

@@ -12,8 +12,10 @@ from pathlib import Path
 
 WORKER = "takehome-worker-9"
 REMOTE_ROOT = "/opt/packet-replay-wave-a-c-v1-20260903"
-LOCAL_ROOT = Path("experiments/analysis/packet-replay-runtime")
-FINAL_CSV = Path("experiments/analysis/packet-replay.csv")
+ROOT = Path(__file__).resolve().parents[1]
+LOCAL_ROOT = ROOT / "experiments/analysis/packet-replay-runtime"
+FINAL_CSV = ROOT / "experiments/analysis/packet-replay.csv"
+FINAL_RESULT = ROOT / "experiments/analysis/packet-replay-result.json"
 COMPLETE_MARKER = Path("/tmp/stage5-packet-replay-complete.json")
 
 
@@ -38,6 +40,26 @@ def main() -> int:
                 temporary = FINAL_CSV.with_suffix(".csv.tmp")
                 temporary.write_bytes(source.read_bytes())
                 temporary.replace(FINAL_CSV)
+                result_temporary = FINAL_RESULT.with_suffix(".json.tmp")
+                result_temporary.write_bytes((LOCAL_ROOT / "result.json").read_bytes())
+                result_temporary.replace(FINAL_RESULT)
+                subprocess.run(
+                    ["git", "add", str(FINAL_CSV.relative_to(ROOT)),
+                     str(FINAL_RESULT.relative_to(ROOT))],
+                    cwd=ROOT,
+                    check=True,
+                )
+                subprocess.run(
+                    ["git", "commit", "-m",
+                     f"Record completed packet replay ({result['completed_rows']} rows)"],
+                    cwd=ROOT,
+                    check=True,
+                )
+                subprocess.run(
+                    ["git", "push", "origin", "salvage-fill-reserve-v2"],
+                    cwd=ROOT,
+                    check=True,
+                )
                 marker = {
                     "completed_at": datetime.now(UTC).isoformat(),
                     "remote_root": REMOTE_ROOT,

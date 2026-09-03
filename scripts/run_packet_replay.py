@@ -197,31 +197,70 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     temporary.replace(path)
 
 
+def job_key(row: dict[str, Any]) -> tuple[str, str, str]:
+    return str(row["source_call_id"]), str(row["variant"]), str(row["sample"])
+
+
+def prior_checkpoint(output_dir: Path) -> tuple[list[dict[str, Any]], float]:
+    """Recover successful jobs and cumulative spend without replaying paid calls."""
+    csv_path = output_dir / "packet-replay.csv"
+    rows: list[dict[str, Any]] = []
+    if csv_path.exists():
+        with csv_path.open(newline="") as handle:
+            # Failed attempts remain in events.jsonl, but are not completed jobs.
+            rows = [row for row in csv.DictReader(handle) if not row.get("error")]
+    prior_spend = 0.0
+    result_path = output_dir / "result.json"
+    if result_path.exists():
+        result = json.loads(result_path.read_text())
+        prior_spend = float(
+            result.get("cumulative_spent_usd", result.get("budget", {}).get("spent_usd", 0.0))
+        )
+    return rows, prior_spend
+
+
 async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
     manifest = json.loads(manifest_path.read_text())
-    jobs: list[tuple[dict[str, Any], str, int]] = []
+    all_jobs: list[tuple[dict[str, Any], str, int]] = []
     for record in manifest["records"]:
         for variant in ("with_packet", "without_packet"):
             for sample in (1, 2):
-                jobs.append((record, variant, sample))
+                all_jobs.append((record, variant, sample))
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    rows, prior_spend = prior_checkpoint(output_dir)
+    completed = {job_key(row) for row in rows}
+    jobs = [job for job in all_jobs if (
+        job[0]["source_call_id"], job[1], str(job[2])
+    ) not in completed]
+    remaining_budget = 5.0 - prior_spend
+    if remaining_budget <= 0:
+        raise BudgetExceeded("the replay's cumulative $5 cap is already exhausted")
     events = EventLogger(
         output_dir / "events.jsonl", problem_id="packet-replay",
         secrets=(os.environ.get("OPENROUTER_API_KEY", ""),),
     )
-    budget = BudgetLedger(5.0)
+    budget = BudgetLedger(remaining_budget)
     llm = LLMClient(api_key=os.environ.get("OPENROUTER_API_KEY", ""),
                     budget=budget, events=events)
     lean = LeanClient(image=LEAN_IMAGE, events=events, session_id=uuid.uuid4().hex,
                       timeout_s=120, base_imports="import Mathlib")
-    rows: list[dict[str, Any]] = []
     csv_path = output_dir / "packet-replay.csv"
     lock = asyncio.Lock()
     queue: asyncio.Queue[tuple[dict[str, Any], str, int]] = asyncio.Queue()
     for job in jobs:
         queue.put_nowait(job)
     failure: list[str] = []
+
+    def budget_status() -> dict[str, Any]:
+        snapshot = budget.snapshot()
+        return {
+            "limit_usd": 5.0,
+            "spent_usd": prior_spend + snapshot.spent_usd,
+            "reserved_usd": snapshot.reserved_usd,
+            "accounting_complete": snapshot.accounting_complete,
+            "resume_prior_spend_usd": prior_spend,
+        }
 
     async def worker() -> None:
         while not failure:
@@ -289,10 +328,10 @@ async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
                 atomic_json(output_dir / "status.json", {
                     "experiment": manifest["experiment"],
                     "updated_at": datetime.now(UTC).isoformat(),
-                    "planned_jobs": len(jobs),
-                    "completed_rows": len(rows),
+                    "planned_jobs": len(all_jobs),
+                    "completed_rows": sum(not row.get("error") for row in rows),
                     "queued_jobs": queue.qsize(),
-                    "budget": budget.snapshot().__dict__,
+                    "budget": budget_status(),
                     "failure": failure[0] if failure else None,
                 })
             queue.task_done()
@@ -302,15 +341,19 @@ async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
     finally:
         lean.close()
         await llm.aclose()
-    status = "failed" if failure else ("complete" if not queue.qsize() else "budget_cap")
+    successful_rows = sum(not row.get("error") for row in rows)
+    status = "failed" if failure else (
+        "complete" if successful_rows == len(all_jobs) else "budget_cap"
+    )
     atomic_json(output_dir / "result.json", {
         "experiment": manifest["experiment"],
         "status": status,
         "finished_at": datetime.now(UTC).isoformat(),
-        "planned_jobs": len(jobs),
-        "completed_rows": len(rows),
-        "remaining_jobs": queue.qsize(),
-        "budget": budget.snapshot().__dict__,
+        "planned_jobs": len(all_jobs),
+        "completed_rows": successful_rows,
+        "remaining_jobs": len(all_jobs) - successful_rows,
+        "budget": budget_status(),
+        "cumulative_spent_usd": budget_status()["spent_usd"],
         "failure": failure[0] if failure else None,
     })
     if failure:

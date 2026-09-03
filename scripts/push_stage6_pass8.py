@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
-"""Collect and push the expanded pass@8 screen; launch its fixed GPT tail."""
+"""Collect and push the expanded pass@8 global-queue screen."""
 
 from __future__ import annotations
 
 import json
 import os
-import shlex
 import subprocess
 import time
 from collections import Counter, defaultdict
-from datetime import datetime, time as clock_time
+from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(os.environ.get("STAGE6_PUSH_REPO", "/opt/stage6-pusher/repo"))
 ARCHIVE = ROOT / "evidence/archives/stage6-pass8-20260903"
 LOG = ROOT / "experiments/stage6-expanded/LOG.md"
-REMOTE = "/opt/stage6-pass8-20260903"
-RUNTIME = "/opt/sfrv2-stage5-band4-d43af01-20260903/checkout"
+REMOTE = "/opt/stage6-pass8-20260903/global"
 HOSTS = ("marketplace", "worker2", "worker3", "worker4", "worker5", "worker6", "worker7", "worker8")
 KEEP = ("result.json", "events.jsonl", "transcript.json", "solution.lean",
         "preliminary-status.json", "provenance.json", "queue-state.json")
@@ -41,20 +39,23 @@ def append_log(line: str) -> None:
         handle.write(f"- {stamp()} — {line}\n")
 
 
-def collect() -> tuple[list[dict], dict[str, list[dict]]]:
+def collect() -> tuple[list[dict], dict]:
     ARCHIVE.mkdir(parents=True, exist_ok=True)
-    states: dict[str, list[dict]] = {"qwen": [], "gptoss": []}
-    for arm in states:
-        for index, host in enumerate(HOSTS, 1):
-            destination = ARCHIVE / "hosts" / f"takehome-worker-{index}" / arm
-            destination.mkdir(parents=True, exist_ok=True)
-            command = ["rsync", "-a", "--timeout=30", "--include=*/"]
-            command.extend(f"--include={name}" for name in KEEP)
-            command.extend(("--exclude=*", f"{host}:{REMOTE}/{arm}/worker{index}/", f"{destination}/"))
-            subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            state_path = destination / "queue-state.json"
-            if state_path.exists():
-                states[arm].append(json.loads(state_path.read_text()))
+    for index, host in enumerate(HOSTS, 1):
+        destination = ARCHIVE / "hosts" / f"takehome-worker-{index}"
+        destination.mkdir(parents=True, exist_ok=True)
+        command = ["rsync", "-a", "--timeout=30", "--include=*/"]
+        command.extend(f"--include={name}" for name in KEEP)
+        command.extend(("--exclude=*", f"{host}:{REMOTE}/{host}/cells/", f"{destination}/cells/"))
+        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(
+        ("rsync", "-a", "--timeout=30", "marketplace:/opt/stage6-pass8-20260903/global/global-controller-state.json", str(ARCHIVE / "global-controller-state.json")),
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    controller = {}
+    controller_path = ARCHIVE / "global-controller-state.json"
+    if controller_path.exists():
+        controller = json.loads(controller_path.read_text())
     results = []
     for path in ARCHIVE.rglob("result.json"):
         try:
@@ -63,29 +64,7 @@ def collect() -> tuple[list[dict], dict[str, list[dict]]]:
             continue
         if value.get("problem_id"):
             results.append(value)
-    return results, states
-
-
-def terminal(states: list[dict]) -> bool:
-    return len(states) == 8 and all(state.get("phase") != "running" for state in states)
-
-
-def launch_gpt() -> bool:
-    if now_pt().time() >= clock_time(12, 15):
-        append_log("GPT-OSS pass@4 tail skipped: Qwen did not finish by the preregistered 12:15 PT cutoff.")
-        return False
-    for index, host in enumerate(HOSTS, 1):
-        command = (
-            f"cd {RUNTIME} && exec .venv/bin/python scripts/run_remote_microcell_queue.py "
-            f"--worktree {RUNTIME} --queue {REMOTE}/gptoss/worker{index}/queue.json "
-            f"--run-root {REMOTE}/gptoss/worker{index} "
-            "--launch-deadline 2026-09-03T21:00:00+00:00 "
-            f">> {REMOTE}/gptoss/worker{index}/queue.log 2>&1"
-        )
-        remote_command = "tmux new-session -d -s stage6_pass8_gpt " + shlex.quote(command)
-        subprocess.run(("ssh", host, remote_command), check=True)
-    append_log(f"GPT-OSS pass@4 launched: 128 fixed cells.")
-    return True
+    return results, controller
 
 
 def write_band(results: list[dict], valid: bool) -> int:
@@ -143,25 +122,16 @@ def main() -> int:
     # The launcher records and pushes the launch signal from this same checkout.
     time.sleep(30)
     last_push = 0.0
-    gpt_decided = False
-    gpt_launched = False
     while True:
-        results, states = collect()
-        q_terminal = terminal(states["qwen"])
-        if q_terminal and not gpt_decided:
-            q_count = sum((result.get("agent_metadata") or {}).get("condition") == "qwen-solo-plus" for result in results)
-            gpt_launched = q_count == 256 and launch_gpt()
-            if q_count != 256:
-                append_log(f"B reported skipped/incomplete: Qwen screen ended with {q_count}/256 cells.")
-            gpt_decided = True
-        g_terminal = terminal(states["gptoss"]) if gpt_launched else gpt_decided
-        finished = q_terminal and g_terminal
+        results, controller = collect()
+        finished = controller.get("phase") in {"complete", "incomplete"}
         if finished:
             q_count = sum((result.get("agent_metadata") or {}).get("condition") == "qwen-solo-plus" for result in results)
             band_count = write_band(results, q_count == 256)
             if q_count == 256:
                 append_log(f"BAND.md pushed: {band_count} band problems.")
-            append_log("C skipped: B did not produce a completed band before 13:30 PT." if now_pt().time() >= clock_time(13, 30) or q_count != 256 else "B completed before the C launch gate; confirmation launch pending.")
+            else:
+                append_log(f"B reported incomplete: global screen ended with {q_count}/256 result cells.")
             push(results, include_band=True)
             return 0
         if time.monotonic() - last_push >= 1800:

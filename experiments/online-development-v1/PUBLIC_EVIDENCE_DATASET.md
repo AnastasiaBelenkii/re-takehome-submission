@@ -84,6 +84,11 @@ verdicts and final Comparator outcomes that are not encoded by the call-level
 transcripts. `evidence/ENDPOINT_INDEX.json` records each file's SHA-256 and byte
 size.
 
+The previously omitted repaired C0/C1/C2 Stage 3 wave has its own complete,
+Git-only branch: `evidence/online-development-v1-stage3-2e157547`. This branch
+is a direct child of its generating commit and contains all 84 preregistered
+cells, including their transcripts and endpoint evidence.
+
 ## Interpretation
 
 Multiple archive paths can be mirrors of the same result. Use `content_sha256`

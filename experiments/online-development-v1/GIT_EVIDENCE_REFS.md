@@ -73,3 +73,20 @@ git worktree add ../re-takehome-results FETCH_HEAD
 Paths begin with either `evidence/archives/legacy-20260901/` or
 `evidence/archives/matched-stage3-20260902/`. Duplicate mirrors retain their
 original paths while Git deduplicates their identical blob contents.
+
+## Repaired Stage 3 wave
+
+The `evidence/online-development-v1-stage3-2e157547` branch is a direct child of
+generating commit `2e15754721414db00780a15fbce4d27d2c1f407c`. It contains all
+84 cells preregistered in `stage3-replication-v1.json`, including the three late
+cells that brought the initial 81-cell collection to completion.
+
+The checked evidence matrix has 28 cells per condition, 54 core cells, and 30
+breadth cells. Every cell contains `transcript.json`, `events.jsonl`,
+`result.json`, and `provenance.json`; 82 contain the optional
+`preliminary-status.json`. The wave records 1,387 calls in total.
+
+Browse the branch at
+<https://github.com/AnastasiaBelenkii/re-takehome-submission/tree/evidence/online-development-v1-stage3-2e157547/evidence>.
+`evidence/EVIDENCE_INDEX.json` maps all tasks to their worker-namespaced
+original paths and records artifact hashes.

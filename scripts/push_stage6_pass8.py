@@ -170,13 +170,17 @@ def main() -> int:
         finished = controller.get("phase") in {"complete", "incomplete"}
         if finished:
             q_count = sum((result.get("agent_metadata") or {}).get("condition") == "qwen-solo-plus" for result in results)
-            band_count = write_band(results, q_count == 256)
-            if q_count == 256:
-                append_log(f"BAND.md pushed: {band_count} band problems.")
-            else:
-                append_log(f"B reported incomplete: global screen ended with {q_count}/256 result cells.")
-            push(results, include_band=True)
-            return 0
+            if "BAND.md pushed:" not in log_text and "B reported incomplete:" not in log_text:
+                band_count = write_band(results, q_count == 256)
+                if q_count == 256:
+                    append_log(f"BAND.md pushed: {band_count} band problems.")
+                else:
+                    append_log(f"B reported incomplete: global screen ended with {q_count}/256 result cells.")
+                push(results, include_band=True)
+                last_push = time.monotonic()
+            # Reporting is required at 19:00 even if the screen finishes first.
+            if now_pt().time() >= clock_time(19, 0):
+                return 0
         if changed or time.monotonic() - last_push >= 1800:
             push(results)
             last_push = time.monotonic()

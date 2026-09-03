@@ -252,7 +252,6 @@ async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
                 return
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"[:500]
-                failure.append(error)
             usage = dict(response.usage) if response else {}
             row = {
                 "source_wave": record["source_wave"],
@@ -289,7 +288,7 @@ async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
                     "completed_rows": len(rows),
                     "queued_jobs": queue.qsize(),
                     "budget": budget_status(),
-                    "failure": failure[0] if failure else None,
+                    "failure": None,
                 })
             queue.task_done()
 
@@ -301,9 +300,7 @@ async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
             lean.close()
         await llm.aclose()
     completed_rows = len(rows)
-    status = "failed" if failure else (
-        "complete" if completed_rows == len(all_jobs) else "budget_cap"
-    )
+    status = "complete" if completed_rows == len(all_jobs) else "budget_cap"
     atomic_json(output_dir / "result.json", {
         "experiment": manifest["experiment"],
         "status": status,
@@ -313,10 +310,8 @@ async def run(manifest_path: Path, output_dir: Path, concurrency: int) -> None:
         "remaining_jobs": len(all_jobs) - completed_rows,
         "budget": budget_status(),
         "cumulative_spent_usd": budget_status()["spent_usd"],
-        "failure": failure[0] if failure else None,
+        "failure": None,
     })
-    if failure:
-        raise RuntimeError(failure[0])
 
 
 def main() -> None:

@@ -26,6 +26,21 @@ class LeanRuntimeError(RuntimeError):
     pass
 
 
+def pristine_import_block(source: str) -> str:
+    """Return the challenge's import lines exactly as written.
+
+    Challenges are complete Lean files, so their imports define the environment
+    in which warm checks must run.  Keep spelling and ordering intact; the
+    ``import Mathlib`` fallback preserves the historical behavior for malformed
+    or synthetic inputs without imports.
+    """
+    imports = [
+        line for line in source.splitlines()
+        if line.lstrip().startswith("import ")
+    ]
+    return "\n".join(imports) or "import Mathlib"
+
+
 @dataclass(frozen=True)
 class LeanCheck:
     accepted: bool
@@ -99,11 +114,13 @@ class LeanClient:
         events: EventLogger,
         session_id: str | None = None,
         timeout_s: int = 120,
+        base_imports: str = "import Mathlib",
     ):
         self.image = image
         self.events = events
         self.session_id = session_id or uuid.uuid4().hex
         self.timeout_s = timeout_s
+        self.base_imports = base_imports.strip() or "import Mathlib"
         self._proc: subprocess.Popen[bytes] | None = None
         self._container_name: str | None = None
         self._base_env: int | None = None
@@ -176,13 +193,22 @@ class LeanClient:
             start_new_session=True,
         )
         self._ever_started = True
-        env_id, messages, timed_out = self._send("import Mathlib", None, max(180, self.timeout_s))
+        env_id, messages, timed_out = self._send(
+            self.base_imports, None, max(180, self.timeout_s)
+        )
         if timed_out or env_id is None or any(m.get("severity") == "error" for m in messages):
             self.close()
             detail = "; ".join(str(m.get("data", "")) for m in messages[:3])
-            raise LeanRuntimeError(f"REPL failed to import Mathlib: {detail or 'no response'}")
+            raise LeanRuntimeError(
+                f"REPL failed to load pristine imports: {detail or 'no response'}"
+            )
         self._base_env = env_id
-        self.events.emit("lean_container_started", session_id=self.session_id, image=self.image)
+        self.events.emit(
+            "lean_container_started",
+            session_id=self.session_id,
+            image=self.image,
+            base_imports_sha256=hashlib.sha256(self.base_imports.encode("utf-8")).hexdigest(),
+        )
 
     def _send(
         self, command: str, env: int | None, timeout_s: int

@@ -262,7 +262,11 @@ class SubmissionAgent:
         )
 
 
-def create_agent() -> SubmissionAgent:
-    # Judging supplies the authoritative eight-hour and $1/problem limits.
-    # Experimental construction remains internally capped by default.
-    return SubmissionAgent(external_limits_only=True)
+def create_agent():
+    """Create the promoted C1+ fill/reserve submission candidate."""
+
+    # Keep the evaluator-facing module and factory stable while selecting the
+    # experimentally frozen candidate without dispatch-only environment flags.
+    from submission.candidates import create_c1plus_fill_reserve_agent
+
+    return create_c1plus_fill_reserve_agent()

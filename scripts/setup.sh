@@ -3,17 +3,26 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-command -v python3 >/dev/null 2>&1 || { echo "Python 3.11+ is required." >&2; exit 1; }
-python3 - <<'PY'
+PYTHON_BIN=${PYTHON_BIN:-}
+if [[ -z "$PYTHON_BIN" ]]; then
+  for candidate in python3.13 python3.12 python3.11 python3; do
+    if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys; raise SystemExit(sys.version_info < (3, 11))'; then
+      PYTHON_BIN=$(command -v "$candidate")
+      break
+    fi
+  done
+fi
+[[ -n "$PYTHON_BIN" ]] || { echo "Python 3.11+ is required." >&2; exit 1; }
+"$PYTHON_BIN" - <<'PY'
 import sys
 if sys.version_info < (3, 11):
-    raise SystemExit("Python 3.11+ is required")
+    raise SystemExit("PYTHON_BIN must select Python 3.11+")
 PY
 command -v docker >/dev/null 2>&1 || { echo "Docker is required." >&2; exit 1; }
 docker version >/dev/null 2>&1 || { echo "Docker is installed but its daemon is not running." >&2; exit 1; }
 
 if [ ! -d .venv ]; then
-  python3 -m venv .venv
+  "$PYTHON_BIN" -m venv .venv
 fi
 .venv/bin/python -m pip install --quiet --upgrade pip
 .venv/bin/python -m pip install --quiet -e .

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import importlib
 import inspect
 import json
@@ -11,6 +12,7 @@ import os
 import sys
 import time
 import traceback
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +25,7 @@ from .lean import (
     compare_solution,
     cleanup_session_containers,
     numeric_answers_are_literals,
+    pristine_import_block,
 )
 from .llm import LLMClient
 from .manifest import ProblemSpec
@@ -49,6 +52,26 @@ def _models_used(events_path: Path) -> list[str]:
     return sorted(model for model in models if isinstance(model, str))
 
 
+def _verification_reserve(config: dict[str, Any]) -> float:
+    """Reserve final-verifier time with margin, bounded for short canaries."""
+    desired = max(
+        float(config["verify_reserve_s"]),
+        float(config["comparator_timeout_s"]) + 30.0,
+    )
+    return min(desired, float(config["time_limit_s"]) * 0.25)
+
+
+def _create_warm_lean_client(config: dict[str, Any], events: EventLogger) -> LeanClient:
+    """Construct the warm REPL with the challenge's pristine import context."""
+    return LeanClient(
+        image=config["lean_image"],
+        events=events,
+        session_id=config["session_id"],
+        timeout_s=int(config["lean_check_timeout_s"]),
+        base_imports=pristine_import_block(config["challenge"]),
+    )
+
+
 async def _run(config: dict[str, Any]) -> int:
     out_dir = Path(config["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -57,13 +80,15 @@ async def _run(config: dict[str, Any]) -> int:
     events = EventLogger(events_path, problem_id=config["problem_id"], secrets=(api_key,))
     budget = BudgetLedger(float(config["budget_usd"]))
     llm = LLMClient(api_key=api_key, budget=budget, events=events)
-    lean = LeanClient(
-        image=config["lean_image"],
-        events=events,
-        session_id=config["session_id"],
-        timeout_s=int(config["lean_check_timeout_s"]),
-    )
     challenge = config["challenge"]
+    lean = _create_warm_lean_client(config, events)
+    spec = ProblemSpec(
+        id=config["problem_id"],
+        theorem_names=tuple(config["theorem_names"]),
+        definition_names=tuple(config["definition_names"]),
+        numeric_answer_names=tuple(config["numeric_answer_names"]),
+        metadata=config["problem_metadata"],
+    )
     solution_path = out_dir / "solution.lean"
     checkpoint_metadata: dict[str, Any] = {}
 
@@ -78,18 +103,67 @@ async def _run(config: dict[str, Any]) -> int:
         checkpoint_metadata.update(metadata)
         events.emit("checkpoint", source_bytes=len(source.encode("utf-8")), metadata=metadata)
 
+    async def verify_candidate(source: str) -> dict[str, Any]:
+        """Run the real answer-shape and Comparator checks in a fresh container."""
+        answer_ok, answer_errors = numeric_answers_are_literals(
+            source, spec.numeric_answer_names
+        )
+        verification_session = uuid.uuid4().hex
+        try:
+            verdict = await asyncio.to_thread(
+                compare_solution,
+                image=config["lean_image"],
+                session_id=verification_session,
+                challenge=challenge,
+                solution=source,
+                spec=spec,
+                timeout_s=int(config["comparator_timeout_s"]),
+            )
+        except asyncio.CancelledError:
+            # asyncio cannot stop a thread already inside subprocess.run.
+            # Force-remove only this verifier's unguessable labelled container;
+            # compare_solution's own finally block remains a second cleanup.
+            await asyncio.shield(asyncio.to_thread(
+                cleanup_session_containers, verification_session
+            ))
+            events.emit(
+                "candidate_verification_cancelled",
+                source_sha256=hashlib.sha256(source.encode("utf-8")).hexdigest(),
+            )
+            raise
+        result = {
+            "passed": bool(answer_ok and verdict.passed),
+            "answer_shape_passed": answer_ok,
+            "answer_shape_errors": answer_errors,
+            "comparator_passed": verdict.passed,
+            "comparator_exit_code": verdict.exit_code,
+            "comparator_timed_out": verdict.timed_out,
+            "comparator_duration_ms": verdict.duration_ms,
+        }
+        events.emit(
+            "candidate_verification",
+            source_sha256=hashlib.sha256(source.encode("utf-8")).hexdigest(),
+            result=result,
+        )
+        return result
+
     problem = Problem(
         id=config["problem_id"],
         description=config["description"],
         challenge=challenge,
         metadata=config["problem_metadata"],
     )
-    services = Services(llm=llm, lean=lean, checkpoint=checkpoint)
+    services = Services(
+        llm=llm, lean=lean, checkpoint=checkpoint, verify=verify_candidate
+    )
     started = time.monotonic()
     status = "failed"
     agent_error: dict[str, Any] | None = None
     agent_metadata: dict[str, Any] = {}
-    reserve = min(float(config["verify_reserve_s"]), float(config["time_limit_s"]) * 0.25)
+    # Preserve enough time for the configured Comparator plus container
+    # shutdown/serialization margin. Short development runs cap the reserve at
+    # 25% of their wall limit; full judging runs receive the complete margin.
+    reserve = _verification_reserve(config)
     agent_time = max(1.0, float(config["time_limit_s"]) - reserve)
     events.emit("problem_started", agent=config["agent"], agent_time_limit_s=agent_time)
     try:
@@ -125,13 +199,6 @@ async def _run(config: dict[str, Any]) -> int:
     # Final verification never reuses the agent's environment. Stop the warm
     # REPL first, then launch Comparator in a separately created clean image.
     lean.close()
-    spec = ProblemSpec(
-        id=config["problem_id"],
-        theorem_names=tuple(config["theorem_names"]),
-        definition_names=tuple(config["definition_names"]),
-        numeric_answer_names=tuple(config["numeric_answer_names"]),
-        metadata=config["problem_metadata"],
-    )
     answer_ok, answer_errors = numeric_answers_are_literals(solution, spec.numeric_answer_names)
     comparator: dict[str, Any]
     try:

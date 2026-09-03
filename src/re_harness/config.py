@@ -55,7 +55,7 @@ class HarnessSettings:
     n_workers: int
     lean_check_timeout_s: int = 120
     comparator_timeout_s: int = 180
-    verify_reserve_s: int = 120
+    verify_reserve_s: int = 240
 
     def __post_init__(self) -> None:
         if not self.lean_image or self.lean_image.startswith("-") or any(
@@ -83,5 +83,5 @@ class HarnessSettings:
             n_workers=n_workers if n_workers is not None else _positive_int("N_WORKERS", 1),
             lean_check_timeout_s=_positive_int("LEAN_CHECK_TIMEOUT_S", 120),
             comparator_timeout_s=_positive_int("COMPARATOR_TIMEOUT_S", 180),
-            verify_reserve_s=_positive_int("VM_VERIFY_RESERVE_S", 120),
+            verify_reserve_s=_positive_int("VM_VERIFY_RESERVE_S", 240),
         )

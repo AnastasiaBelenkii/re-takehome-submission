@@ -8,7 +8,7 @@ import pytest
 
 from re_harness.budget import BudgetAccountingError, BudgetLedger
 from re_harness.events import EventLogger
-from re_harness.llm import LLMCallError, LLMClient, LLMPolicyError
+from re_harness.llm import CostFreeRateLimitError, LLMCallError, LLMClient, LLMPolicyError
 from re_harness.models import MODEL_A
 
 
@@ -57,8 +57,29 @@ async def test_logged_openrouter_call_uses_actual_cost_and_no_secret(tmp_path):
     )
     await client.aclose()
     assert response.content == f"answer {key}"
+    assert client.requests_dispatched_by_model == {MODEL_A: 1}
     assert ledger.snapshot().spent_usd == pytest.approx(0.0123)
     assert key not in events_path.read_text()
+
+
+@pytest.mark.asyncio
+async def test_missing_key_is_not_counted_as_a_dispatched_request(tmp_path):
+    client = LLMClient(
+        api_key="",
+        budget=BudgetLedger(1),
+        events=EventLogger(tmp_path / "events", problem_id="p"),
+        transport=httpx.MockTransport(
+            lambda _request: (_ for _ in ()).throw(
+                AssertionError("transport should not be called")
+            )
+        ),
+    )
+    with pytest.raises(LLMCallError, match="not configured"):
+        await client.complete(
+            model=MODEL_A, messages=[{"role": "user", "content": "x"}]
+        )
+    assert client.requests_dispatched_by_model == {}
+    await client.aclose()
 
 
 @pytest.mark.asyncio
@@ -153,8 +174,10 @@ async def test_rate_limit_without_reported_cost_leaves_budget_open_for_retry(tmp
         events=EventLogger(tmp_path / "events", problem_id="p"),
         transport=httpx.MockTransport(handler),
     )
-    with pytest.raises(LLMCallError, match="reported no cost"):
+    with pytest.raises(CostFreeRateLimitError, match="reported no cost") as caught:
         await client.complete(model=MODEL_A, messages=[{"role": "user", "content": "x"}])
+    assert caught.value.status_code == 429
+    assert caught.value.cost_status == "none"
     snapshot = ledger.snapshot()
     assert snapshot.accounting_complete
     assert snapshot.reserved_usd == 0
@@ -182,8 +205,9 @@ async def test_rate_limit_with_reported_cost_is_charged(tmp_path):
         events=EventLogger(tmp_path / "events", problem_id="p"),
         transport=httpx.MockTransport(handler),
     )
-    with pytest.raises(LLMCallError, match="after reporting"):
+    with pytest.raises(LLMCallError, match="after reporting") as caught:
         await client.complete(model=MODEL_A, messages=[{"role": "user", "content": "x"}])
+    assert not isinstance(caught.value, CostFreeRateLimitError)
     snapshot = ledger.snapshot()
     assert snapshot.spent_usd == pytest.approx(0.004)
     assert snapshot.accounting_complete

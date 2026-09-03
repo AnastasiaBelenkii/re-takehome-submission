@@ -18,3 +18,8 @@ cutoff. C0+ dispatched 31 calls and C1+ dispatched 22; both recorded zero
 warm-Lean successes and an empty `verification_events` list. The preregistered
 release gate therefore failed. Wave D is halted and no main ITT cell was
 released.
+
+Both operational canaries subsequently completed at 2026-09-02 23:35 PT and
+failed the final Comparator. Their complete artifacts are published from
+remote root `/opt/salvage-fill-reserve-v2-stage5-band-v1-20260903T0618Z` on
+`evidence/results-20260902` at `ef4b1f5` (two cells).

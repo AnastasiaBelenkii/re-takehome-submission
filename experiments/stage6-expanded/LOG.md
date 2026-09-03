@@ -22,3 +22,5 @@
 - 14:11 PT — screen launched 14:11 on 8 workers.
 - 14:12 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 0 cells; passes per arm: 
 - 14:20 PT — PUSH: Archive root evidence/archives/stage6-calibration-20260903; 128 cells; passes per arm: qwen-solo-plus 68/128
+- 14:20 PT — calibration complete, 128 cells, CALIBRATION.md pushed.
+- 14:20 PT — PUSH: Archive root evidence/archives/stage6-calibration-20260903; 128 cells; passes per arm: qwen-solo-plus 68/128

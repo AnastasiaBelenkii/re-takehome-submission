@@ -18,7 +18,14 @@ Qwen solo-plus, seeds 7001–7008, at most 10 calls per cell.
 | putnam_2020_a2 | 0/8 | floor |
 | rmo_2000_2 | 0/8 | floor |
 | rmo_2000_3 | 0/8 | floor |
-| rmo_2000_6 | 0/8 | unclassified (import-fix audit case) |
+| rmo_2000_6 | 0/8 | floor |
 | rmo_2001_2 | 0/8 | floor |
 
 The known ceiling, floor, and band labels above were fixed in the assignment extension before this calibration. The mechanically observed 1–7/8 band is: p06_pow_mod, p07_least_divisible, p09_imo1964, p10_factorial_pow.
+
+## Effort by outcome
+
+| Outcome | Cells | Median model calls | Median wall time (s) |
+|---|---:|---:|---:|
+| solved | 68 | 10 | 364.0 |
+| failed | 60 | 10 | 753.8 |

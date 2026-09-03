@@ -48,3 +48,28 @@ or fetch it without switching the working branch:
 git fetch origin evidence/all-transcripts-20260902
 git worktree add ../re-takehome-transcripts FETCH_HEAD
 ```
+
+## Endpoint outcomes
+
+The `evidence/results-20260902` branch is the Git-only endpoint evidence mirror.
+It contains 5,499 original files:
+
+| Filename | Archived paths | Unique Git blobs |
+|---|---:|---:|
+| `result.json` | 2,576 | 512 |
+| `events.jsonl` | 2,564 | 498 |
+| `provenance.json` | 301 | 221 |
+| `preliminary-status.json` | 58 | 58 |
+
+Browse it at
+<https://github.com/AnastasiaBelenkii/re-takehome-submission/tree/evidence/results-20260902/evidence>,
+or fetch it independently of the transcript branch:
+
+```bash
+git fetch origin evidence/results-20260902
+git worktree add ../re-takehome-results FETCH_HEAD
+```
+
+Paths begin with either `evidence/archives/legacy-20260901/` or
+`evidence/archives/matched-stage3-20260902/`. Duplicate mirrors retain their
+original paths while Git deduplicates their identical blob contents.

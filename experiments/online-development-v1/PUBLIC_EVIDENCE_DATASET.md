@@ -76,6 +76,14 @@ files without exact commit provenance. Its content-addressed files and
 convenience branch must not be used to infer generating commits; use the 13
 per-commit branches for that relationship.
 
+Evaluator endpoint evidence is available without Spaces access on the
+`evidence/results-20260902` branch. It preserves every archived `result.json`,
+`events.jsonl`, `provenance.json`, and `preliminary-status.json` under its
+original archive-relative path. In particular, this branch contains the Lean
+verdicts and final Comparator outcomes that are not encoded by the call-level
+transcripts. `evidence/ENDPOINT_INDEX.json` records each file's SHA-256 and byte
+size.
+
 ## Interpretation
 
 Multiple archive paths can be mirrors of the same result. Use `content_sha256`

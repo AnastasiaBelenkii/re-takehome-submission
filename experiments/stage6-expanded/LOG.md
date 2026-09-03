@@ -33,3 +33,5 @@
 - 15:00 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 17 cells; passes per arm: qwen-solo-plus 8/17
 - 15:04 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 20 cells; passes per arm: qwen-solo-plus 9/20
 - 15:07 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 22 cells; passes per arm: qwen-solo-plus 9/22
+- 15:08 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 22 cells; passes per arm: qwen-solo-plus 9/22
+- 15:08 PT — Worker 10 joined the frozen global screen queue as its ninth work-stealing executor; workers 9 and 11 remain untouched.

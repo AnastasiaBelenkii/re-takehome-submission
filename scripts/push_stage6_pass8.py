@@ -17,7 +17,7 @@ ROOT = Path(os.environ.get("STAGE6_PUSH_REPO", "/opt/stage6-pusher/repo"))
 ARCHIVE = ROOT / "evidence/archives/stage6-pass8-20260903"
 LOG = ROOT / "experiments/stage6-expanded/LOG.md"
 REMOTE = "/opt/stage6-pass8-20260903/global"
-HOSTS = ("marketplace", "worker2", "worker3", "worker4", "worker5", "worker6", "worker7", "worker8")
+HOSTS = ("marketplace", "worker2", "worker3", "worker4", "worker5", "worker6", "worker7", "worker8", "worker10")
 TARGETS = {
     "marketplace": None,
     "worker2": "root@10.122.0.4",
@@ -27,6 +27,7 @@ TARGETS = {
     "worker6": "root@10.122.0.6",
     "worker7": "root@10.122.0.8",
     "worker8": "root@10.122.0.10",
+    "worker10": "root@10.122.0.11",
 }
 KEEP = ("result.json", "events.jsonl", "transcript.json", "solution.lean",
         "preliminary-status.json", "provenance.json", "queue-state.json")
@@ -52,8 +53,9 @@ def append_log(line: str) -> None:
 
 def collect() -> tuple[list[dict], dict]:
     ARCHIVE.mkdir(parents=True, exist_ok=True)
-    for index, host in enumerate(HOSTS, 1):
-        destination = ARCHIVE / "hosts" / f"takehome-worker-{index}"
+    for host in HOSTS:
+        worker_number = 1 if host == "marketplace" else int(host.removeprefix("worker"))
+        destination = ARCHIVE / "hosts" / f"takehome-worker-{worker_number}"
         destination.mkdir(parents=True, exist_ok=True)
         command = ["rsync", "-a", "--timeout=30", "--include=*/"]
         command.extend(f"--include={name}" for name in KEEP)

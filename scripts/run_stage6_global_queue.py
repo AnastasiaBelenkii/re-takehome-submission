@@ -29,6 +29,7 @@ SSH_TARGETS = {
     "worker6": "root@10.122.0.6",
     "worker7": "root@10.122.0.8",
     "worker8": "root@10.122.0.10",
+    "worker10": "root@10.122.0.11",
 }
 SSH_OPTIONS = (
     "-o", "ConnectTimeout=10",
@@ -96,6 +97,9 @@ def main() -> int:
             raise ValueError("persisted state differs from frozen global queue")
         if any(item["status"] == "dispatching" for item in state["tasks"].values()):
             raise RuntimeError("ambiguous prior dispatch; refusing to retry")
+        state["hosts"] = args.hosts
+        state["updated_at"] = now()
+        atomic(args.state, state)
     else:
         state = {
             "schema_version": 1,

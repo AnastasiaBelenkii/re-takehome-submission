@@ -35,11 +35,16 @@ def main() -> int:
     parser.add_argument("--queue", type=Path, required=True)
     parser.add_argument("--run-root", type=Path, required=True)
     parser.add_argument("--poll-seconds", type=float, default=2)
+    parser.add_argument(
+        "--launch-deadline", type=str,
+        help="absolute ISO-8601 time after which pending cells are recorded as skipped",
+    )
     args = parser.parse_args()
 
     worktree = args.worktree.resolve()
     queue_path = args.queue.resolve()
     run_root = args.run_root.resolve()
+    launch_deadline = datetime.fromisoformat(args.launch_deadline) if args.launch_deadline else None
     queue = json.loads(queue_path.read_text())
     if queue.get("schema_version") != 1 or not queue.get("descriptors"):
         raise ValueError("invalid or empty frozen queue")
@@ -82,6 +87,17 @@ def main() -> int:
             if not status_path.exists():
                 raise RuntimeError(f"ambiguous running cell: {task_id}")
         else:
+            if launch_deadline is not None and datetime.now(timezone.utc) >= launch_deadline:
+                cell.update({"status": "skipped_deadline", "at": now()})
+                for remaining_id in task_ids[task_ids.index(task_id) + 1:]:
+                    if state["tasks"][remaining_id]["status"] == "pending":
+                        state["tasks"][remaining_id] = {
+                            "status": "skipped_deadline", "at": now()
+                        }
+                state["phase"] = "deadline"
+                state["updated_at"] = now()
+                atomic(state_path, state)
+                return 0
             if task_root.exists():
                 raise RuntimeError(f"refusing existing task directory: {task_root}")
             descriptor = json.loads(descriptor_path.read_text())

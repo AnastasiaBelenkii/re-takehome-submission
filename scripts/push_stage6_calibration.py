@@ -46,7 +46,11 @@ def collect() -> tuple[list[tuple[Path, dict]], bool]:
             continue
         if result.get("problem_id"):
             results.append((path, result))
-    return results, len(results) == 128
+    states = list(ARCHIVE.rglob("queue-state.json"))
+    terminal = len(states) == 8 and all(
+        json.loads(path.read_text()).get("phase") != "running" for path in states
+    )
+    return results, terminal
 
 
 def append_log(line: str) -> None:

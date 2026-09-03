@@ -25,7 +25,7 @@ for host in marketplace worker2 worker3 worker4 worker5 worker6 worker7 worker8;
     test ! -e $root/worker$index/queue-state.json
     ! tmux has-session -t stage6_calibration 2>/dev/null
     tmux new-session -d -s stage6_calibration \\
-      'cd $runtime && exec .venv/bin/python scripts/run_remote_microcell_queue.py --worktree $runtime --queue $root/worker$index/queue.json --run-root $root/worker$index >> $root/worker$index/queue.log 2>&1'
+      'cd $runtime && exec .venv/bin/python scripts/run_remote_microcell_queue.py --worktree $runtime --queue $root/worker$index/queue.json --run-root $root/worker$index --launch-deadline 2026-09-03T21:00:00+00:00 >> $root/worker$index/queue.log 2>&1'
   "
   index=$((index + 1))
 done

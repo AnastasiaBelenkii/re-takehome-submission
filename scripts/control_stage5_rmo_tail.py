@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dispatch the fixed rmo tail after the main Wave D dispatch cutoff."""
+"""Dispatch the fixed rmo tail after all main Wave D cells are dispatched."""
 
 from __future__ import annotations
 
@@ -19,6 +19,15 @@ REMOTE_WORKTREE = Path("/opt/sfrv2-importfix-853884e-stage5-tail-20260903/checko
 REMOTE_ROOT = Path("/opt/salvage-fill-reserve-v2-stage5-rmo-tail-v1-20260903")
 START = datetime.fromisoformat("2026-09-03T09:30:00+00:00")
 STOP = datetime.fromisoformat("2026-09-03T11:59:00+00:00")
+MAIN_STATE = Path("/tmp/stage5-band-controller-state.json")
+
+
+def main_fully_dispatched() -> bool:
+    """Do not let the tail compete with any still-queued main Wave D cell."""
+    if not MAIN_STATE.exists():
+        return False
+    state = json.loads(MAIN_STATE.read_text())
+    return not any(cell["status"] == "pending" for cell in state["cells"].values())
 
 
 def main() -> int:
@@ -44,7 +53,7 @@ def main() -> int:
             "experiment": "salvage-fill-reserve-v2-stage5-rmo-tail-v1",
             "created_at": now(),
             "updated_at": now(),
-            "phase": "waiting_for_0230_pt",
+            "phase": "waiting_for_main_dispatch",
             "task_ids": task_ids,
             "cells": {
                 entry["task_id"]: {
@@ -72,7 +81,8 @@ def main() -> int:
             return 0
 
         current = datetime.now(timezone.utc)
-        state["phase"] = "waiting_for_0230_pt" if current < START else "running"
+        tail_ready = current >= START and main_fully_dispatched()
+        state["phase"] = "running" if tail_ready else "waiting_for_main_dispatch"
         incomplete = 0
         next_block = None
         for block in blocks:
@@ -83,7 +93,7 @@ def main() -> int:
             elif all(status == "pending" for status in statuses) and next_block is None:
                 next_block = block
 
-        if START <= current < STOP and next_block is not None and incomplete < 2:
+        if tail_ready and current < STOP and next_block is not None and incomplete < 2:
             assigned = {
                 cell.get("worker") for cell in state["cells"].values()
                 if cell["status"] in {"dispatching", "running"}

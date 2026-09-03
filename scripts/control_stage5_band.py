@@ -17,7 +17,7 @@ from typing import Any
 WORKERS = [f"takehome-worker-{index}" for index in range(1, 9)]
 REMOTE_WORKTREE = Path("/opt/sfrv2-stage5-band4-d43af01-20260903/checkout")
 REMOTE_ROOT = Path("/opt/salvage-fill-reserve-v2-stage5-band4-v1-20260903")
-DISPATCH_CUTOFF = datetime.fromisoformat("2026-09-03T09:30:00+00:00")
+DISPATCH_CUTOFF = datetime.fromisoformat("2026-09-03T11:59:00+00:00")
 
 
 def now() -> str:

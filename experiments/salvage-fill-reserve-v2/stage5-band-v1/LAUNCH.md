@@ -12,6 +12,11 @@
 - First dispatch: 2026-09-03 00:28 PT
 - Status: released without a gate; continuous dispatch active
 
+At 02:15 PT the user removed the planned 02:30 PT dispatch cutoff. The main
+queue continues in its frozen order through the final deadline. The separate
+rmo tail waits until every main-matrix cell has been dispatched, so it cannot
+compete with the main queue.
+
 The failed p07 canary gate is retired by the final 01:10 PT plan. It was
 uninformative because neither agent found a warm-accepted candidate, so no
 verification could start. Wave D is released without a gate. Existing paid

@@ -9,6 +9,6 @@ The source differs from the main Wave D runtime SHA only in runtime
 narrow-import handling. Tests assert byte-identical behavior for challenges
 whose pristine block is exactly `import Mathlib`.
 
-The tail is queued after the main Wave D dispatch cutoff. It never interrupts
-or replaces a running paid cell, and every task has a fresh ID and result
-namespace.
+The tail waits until every main Wave D cell has been dispatched. It never
+interrupts or replaces a running paid cell, and every task has a fresh ID and
+result namespace.

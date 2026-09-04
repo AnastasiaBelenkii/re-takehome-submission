@@ -69,3 +69,4 @@
 - 20:49 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 1 cells; passes per arm: qwen-solo-plus 0/0, gptoss-solo-plus 1/1, c0plus-reserve 0/0, c1plus-fill-reserve 0/0, c0-qq 0/0
 - 20:49 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 1 cells; passes per arm: qwen-solo-plus 0/0, gptoss-solo-plus 1/1, c0plus-reserve 0/0, c1plus-fill-reserve 0/0, c0-qq 0/0
 - 20:50 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 3 cells; passes per arm: qwen-solo-plus 1/1, gptoss-solo-plus 1/1, c0plus-reserve 1/1, c1plus-fill-reserve 0/0, c0-qq 0/0
+- 21:21 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 27 cells; passes per arm: qwen-solo-plus 5/7, gptoss-solo-plus 4/7, c0plus-reserve 6/7, c1plus-fill-reserve 5/6, c0-qq 0/0

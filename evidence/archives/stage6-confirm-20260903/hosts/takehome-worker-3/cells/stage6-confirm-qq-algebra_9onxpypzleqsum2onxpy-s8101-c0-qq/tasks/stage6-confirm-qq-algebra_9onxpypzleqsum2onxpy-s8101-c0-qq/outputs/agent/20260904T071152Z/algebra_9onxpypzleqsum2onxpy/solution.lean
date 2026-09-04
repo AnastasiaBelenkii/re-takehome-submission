@@ -19,46 +19,45 @@ theorem algebra_9onxpypzleqsum2onxpy
   
   have h_denom_pos : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity
   
-  -- Cross multiply and simplify to get an equivalent inequality
-  have h_main : 
-    2 * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) * (x + y + z) - 
-    9 * (x + y) * (y + z) * (z + x) ≥ 0 := by
+  have h_main : 0 ≤ 2 * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) * (x + y + z) - 9 * (x + y) * (y + z) * (z + x) := by
     ring_nf
     nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),
       mul_pos hxy hyz, mul_pos hyz hzx, mul_pos hzx hxy]
   
-  -- Show the RHS has a common denominator
-  have h_rhs_common : 
-    2 / (x + y) + 2 / (y + z) + 2 / (z + x) = 
+  have h_rhs_common : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) = 
     2 * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) / ((x + y) * (y + z) * (z + x)) := by
     field_simp [hxy.ne', hyz.ne', hzx.ne']
     <;> ring
+    <;> field_simp [hxy.ne', hyz.ne', hzx.ne']
+    <;> ring
   
-  -- Show the LHS has a common denominator
-  have h_lhs_common : 
-    9 / (x + y + z) = 
+  have h_lhs_common : 9 / (x + y + z) = 
     9 * (x + y) * (y + z) * (z + x) / ((x + y) * (y + z) * (z + x) * (x + y + z)) := by
     field_simp [hxy.ne', hyz.ne', hzx.ne', hxyz.ne']
     <;> ring
+    <;> field_simp [hxy.ne', hyz.ne', hzx.ne', hxyz.ne']
+    <;> ring
   
-  -- Compare the two sides
-  have h_diff : 
-    2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by
+  have h_diff : 0 ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) := by
     rw [h_rhs_common, h_lhs_common]
-    
     have h_num : 0 ≤ 2 * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) * (x + y + z) - 9 * (x + y) * (y + z) * (z + x) := h_main
     have h_denom : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := h_denom_pos
     
-    have h_common_denom : 
-      (2 * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) / ((x + y) * (y + z) * (z + x))) - 
-      (9 * (x + y) * (y + z) * (z + x) / ((x + y) * (y + z) * (z + x) * (x + y + z))) = 
-      (2 * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) * (x + y + z) - 9 * (x + y) * (y + z) * (z + x)) / ((x + y) * (y + z) * (z + x) * (x + y + z)) := by
+    have h₁ : 0 ≤ (2 * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) * (x + y + z) - 9 * (x + y) * (y + z) * (z + x)) / ((x + y) * (y + z) * (z + x) * (x + y + z)) := by
+      apply div_nonneg
+      · linarith
+      · linarith
+    
+    -- Show that the simplified expression equals our target
+    have h₂ : (2 * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) / ((x + y) * (y + z) * (z + x))) - 
+              (9 * (x + y) * (y + z) * (z + x) / ((x + y) * (y + z) * (z + x) * (x + y + z))) = 
+              (2 * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) * (x + y + z) - 9 * (x + y) * (y + z) * (z + x)) / ((x + y) * (y + z) * (z + x) * (x + y + z)) := by
       field_simp [hxy.ne', hyz.ne', hzx.ne', hxyz.ne']
       <;> ring
+      <;> field_simp [hxy.ne', hyz.ne', hzx.ne', hxyz.ne']
+      <;> ring
     
-    rw [h_common_denom]
-    apply div_nonneg
-    · linarith
-    · linarith
+    rw [h₂]
+    exact h₁
   
-  linarith
+  linarith [h_diff]

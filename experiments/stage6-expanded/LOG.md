@@ -52,3 +52,5 @@
 - 19:00 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 206 cells; passes per arm: qwen-solo-plus 71/206
 - 19:30 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 229 cells; passes per arm: qwen-solo-plus 81/229
 - 20:00 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 252 cells; passes per arm: qwen-solo-plus 88/252
+- 20:02 PT — B reported incomplete: global screen ended with 255/256 result cells.
+- 20:02 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 255 cells; passes per arm: qwen-solo-plus 89/255

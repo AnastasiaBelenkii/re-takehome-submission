@@ -17,7 +17,7 @@ cd "$repo"
 GIT_ASKPASS=/root/stage6_git_askpass.sh GIT_TERMINAL_PROMPT=0 git fetch -q origin refs/heads/qq-arm-v1
 sha=$(git rev-parse FETCH_HEAD)
 gate=$(git show "$sha:experiments/stage6-expanded/QQ_GATE.md")
-printf '%s\n' "$gate" | grep -Eq '(^|[^A-Z])PASSED([^A-Z]|$)'
+printf '%s\n' "$gate" | grep -Eq '^Status: \*\*PASSED\*\*[[:space:]]*$'
 short=$(printf '%.12s' "$sha")
 runtime="/opt/sfrv2-qq-arm-v1-$short/checkout"
 

@@ -18,6 +18,7 @@ ARCHIVE = ROOT / "evidence/archives/stage6-confirm-20260903"
 LOG = ROOT / "experiments/stage6-expanded/LOG.md"
 REMOTE = "/opt/stage6-confirm-20260903/global"
 SOLO_REMOTE = "/opt/stage6-confirm-20260903/solo-global"
+QQ_REMOTE = "/opt/stage6-confirm-20260903/qq-global"
 HOSTS = ("marketplace", "worker2", "worker3", "worker4", "worker5", "worker6", "worker7", "worker8", "worker10")
 TARGETS = {
     "marketplace": None,
@@ -28,7 +29,7 @@ TARGETS = {
 }
 KEEP = ("result.json", "events.jsonl", "transcript.json", "solution.lean", "preliminary-status.json", "provenance.json", "queue-state.json")
 PT = ZoneInfo("America/Los_Angeles")
-ARMS = ("qwen-solo-plus", "gptoss-solo-plus", "c0plus-reserve", "c1plus-fill-reserve")
+ARMS = ("qwen-solo-plus", "gptoss-solo-plus", "c0plus-reserve", "c1plus-fill-reserve", "c0-qq")
 
 
 def now_pt() -> datetime:
@@ -57,7 +58,7 @@ def collect() -> tuple[list[dict], dict]:
         command = ["rsync", "-a", "--timeout=30", "--include=*/"]
         command.extend(f"--include={name}" for name in KEEP)
         target = TARGETS[host]
-        for remote_root in (REMOTE, SOLO_REMOTE):
+        for remote_root in (REMOTE, SOLO_REMOTE, QQ_REMOTE):
             source = f"{remote_root}/{host}/cells/"
             source_path = Path(source)
             if target is None and not source_path.exists():
@@ -71,6 +72,9 @@ def collect() -> tuple[list[dict], dict]:
     solo_source = Path(f"{SOLO_REMOTE}/global-controller-state.json")
     if solo_source.exists():
         shutil.copy2(solo_source, ARCHIVE / "solo-global-controller-state.json")
+    qq_source = Path(f"{QQ_REMOTE}/global-controller-state.json")
+    if qq_source.exists():
+        shutil.copy2(qq_source, ARCHIVE / "qq-global-controller-state.json")
     state_path = ARCHIVE / "global-controller-state.json"
     state = json.loads(state_path.read_text()) if state_path.exists() else {}
     results = []
@@ -103,6 +107,15 @@ def counts(results: list[dict]) -> tuple[Counter, Counter]:
     return passed, totals
 
 
+def state_counts(state: dict) -> tuple[int, int, int]:
+    statuses = Counter(item.get("status", "unknown") for item in state.get("tasks", {}).values())
+    return (
+        statuses["complete"] + statuses["exited_incomplete"],
+        statuses["running"] + statuses["dispatching"],
+        statuses["pending"],
+    )
+
+
 def push(results: list[dict]) -> None:
     passed, totals = counts(results)
     arms = ", ".join(f"{arm} {passed[arm]}/{totals[arm]}" for arm in ARMS)
@@ -119,10 +132,7 @@ def main() -> int:
     last_push = 0.0
     while True:
         results, state = collect()
-        statuses = Counter(item.get("status", "unknown") for item in state.get("tasks", {}).values())
-        terminal = statuses["complete"] + statuses["exited_incomplete"]
-        running = statuses["running"] + statuses["dispatching"]
-        queued = statuses["pending"]
+        terminal, running, queued = state_counts(state)
         passed, totals = counts(results)
         log_text = LOG.read_text() if LOG.exists() else ""
         changed = False
@@ -136,12 +146,32 @@ def main() -> int:
                     append_log(f"solo extension launch failed before dispatch: {launch.stderr.strip()}")
                     changed = True
                 log_text = LOG.read_text() if LOG.exists() else log_text
+        solo_state = read_state(SOLO_REMOTE)
+        solo_terminal, solo_running, solo_queued = state_counts(solo_state)
+        if solo_state and solo_queued == 0 and "qq arm launched" not in log_text:
+            branch = git("ls-remote", "origin", "refs/heads/qq-arm-v1", check=False)
+            if branch.returncode == 0 and branch.stdout.strip():
+                launch = subprocess.run(
+                    ("sh", str(ROOT / "scripts/launch_stage6_qq_arm.sh")),
+                    cwd=ROOT, text=True, capture_output=True,
+                )
+                if launch.returncode != 0:
+                    append_log(f"qq arm prelaunch gate not ready: {launch.stderr.strip()}")
+                    changed = True
+                log_text = LOG.read_text() if LOG.exists() else log_text
         for when in (clock_time(21, 30), clock_time(22, 30), clock_time(23, 30), clock_time(0, 30)):
             marker = when.strftime("%H:%M PT confirm status")
             due = now_pt().time() >= when if when.hour else now_pt().time() < clock_time(12, 0) and now_pt().time() >= when
             if due and marker not in log_text:
                 arm_text = ", ".join(f"{arm} {passed[arm]}/{totals[arm]}" for arm in ARMS)
-                append_log(f"{marker} — terminal {terminal} / running {running} / queued {queued}; passes {arm_text}.")
+                waves = f"confirm {terminal}/{running}/{queued} terminal/running/queued"
+                if solo_state:
+                    waves += f"; solo {solo_terminal}/{solo_running}/{solo_queued}"
+                qq_state = read_state(QQ_REMOTE)
+                if qq_state:
+                    qt, qr, qq = state_counts(qq_state)
+                    waves += f"; qq {qt}/{qr}/{qq}"
+                append_log(f"{marker} — {waves}; passes {arm_text}.")
                 log_text += marker
                 changed = True
         if now_pt().time() >= clock_time(23, 0) and "solo extension launched" not in log_text and "solo extension skipped:" not in log_text:

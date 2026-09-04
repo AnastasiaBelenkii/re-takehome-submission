@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import math
 import os
 import time
@@ -68,6 +69,8 @@ class VerificationJob:
 class TrackState:
     model: str
     candidate: str
+    track_id: str | None = None
+    seed: int | None = None
     calls: int = 0
     feedback: str = ""
     restarts: int = 0
@@ -99,10 +102,17 @@ class CollaborationEngineV2Agent:
         fast_track_reserved_calls: int = 0,
         reserve_release_margin_s: float = 120,
         models: tuple[str, ...] = MODELS,
+        track_ids: tuple[str, ...] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        if not models or len(models) != len(set(models)):
-            raise ValueError("models must be a non-empty tuple of unique model IDs")
+        if not models:
+            raise ValueError("models must be a non-empty tuple")
+        if track_ids is None:
+            if len(models) != len(set(models)):
+                raise ValueError("duplicate models require explicit unique track IDs")
+            track_ids = models
+        if len(track_ids) != len(models) or len(track_ids) != len(set(track_ids)):
+            raise ValueError("track_ids must match models and be unique")
         if max_calls_per_model is not None and not 1 <= max_calls_per_model <= 25:
             raise ValueError("max_calls_per_model must be 1..25 or None")
         if not 1 <= max_restarts <= 2:
@@ -140,7 +150,20 @@ class CollaborationEngineV2Agent:
         self.fast_track_reserved_calls = fast_track_reserved_calls
         self.reserve_release_margin_s = reserve_release_margin_s
         self.models = tuple(models)
+        self.track_ids = tuple(track_ids)
+        self.track_seeds = tuple(
+            seed if track_id == model else self._subseed(seed, index)
+            for index, (track_id, model) in enumerate(
+                zip(self.track_ids, self.models, strict=True)
+            )
+        )
         self.clock = clock
+
+    @staticmethod
+    def _subseed(seed: int, track_index: int) -> int:
+        """Split one cell seed into stable, distinct provider seeds."""
+        digest = hashlib.sha256(f"{seed}:track:{track_index}".encode()).digest()
+        return int.from_bytes(digest[:4], "big") & (2**31 - 1)
 
     def _has_capacity(self, track: TrackState) -> bool:
         return track.active and (
@@ -149,7 +172,15 @@ class CollaborationEngineV2Agent:
 
     async def solve(self, problem: Problem, services: Services) -> AgentResult:
         started = self.clock()
-        tracks = {model: TrackState(model=model, candidate=problem.challenge) for model in self.models}
+        tracks = {
+            track_id: TrackState(
+                model=model, candidate=problem.challenge, track_id=track_id,
+                seed=track_seed,
+            )
+            for track_id, model, track_seed in zip(
+                self.track_ids, self.models, self.track_seeds, strict=True
+            )
+        }
         best_candidate = problem.challenge
         best_model: str | None = None
         best_rank: tuple[int, int, int] | None = None
@@ -199,7 +230,7 @@ class CollaborationEngineV2Agent:
                 return AgentResult(call_zero, self._metadata(
                     tracks, packet_events, deterministic, best_model=None,
                     best_rank=best_rank, rounds=0, cutoff_reached=False,
-                    provider_requests=self._provider_requests(services),
+                    provider_requests=self._provider_requests(services, tracks),
                     verification_events=[],
                 ))
 
@@ -231,19 +262,19 @@ class CollaborationEngineV2Agent:
             if not self._has_capacity(track):
                 return False
             if (
-                track.model == self.models[0]
+                track.track_id == self.track_ids[0]
                 and self.fast_track_reserved_calls
                 and self.max_calls_per_model is not None
                 and track.calls >= self.max_calls_per_model - self.fast_track_reserved_calls
                 and not track.pending_packets
             ):
-                peer = tracks[self.models[1]]
+                peer = tracks[self.track_ids[1]]
                 deadline_release = (
                     self.clock() - started
                     >= self.dispatch_cutoff_s - self.reserve_release_margin_s
                 )
                 peer_in_flight = any(
-                    pending_value[0].model == peer.model
+                    pending_value[0].track_id == peer.track_id
                     for pending_value in pending.values()
                 )
                 peer_exhausted = not self._has_capacity(peer) and not peer_in_flight
@@ -339,8 +370,8 @@ class CollaborationEngineV2Agent:
         if self.clock() - started >= self.dispatch_cutoff_s:
             cutoff_reached = True
         else:
-            for model in self.models:
-                schedule(tracks[model], check_cutoff=False)
+            for track_id in self.track_ids:
+                schedule(tracks[track_id], check_cutoff=False)
 
         verified_success = False
         while pending or verification_task is not None or queued_verification is not None:
@@ -385,7 +416,7 @@ class CollaborationEngineV2Agent:
             completed_observation_rounds: set[int] = set()
             ordered_completed = sorted(
                 (task for task in completed if task in pending),
-                key=lambda task: self.models.index(pending[task][0].model),
+                key=lambda task: self.track_ids.index(pending[task][0].track_id),
             )
             for task in ordered_completed:
                 track, phase, packet, _packet_event, call_round = pending.pop(task)
@@ -500,7 +531,7 @@ class CollaborationEngineV2Agent:
                     diagnostic_text, accepted, timed_out,
                     progress_candidate, residual_goals, progress_sha256,
                 )
-                observations_by_round.setdefault(call_round, {})[track.model] = observation
+                observations_by_round.setdefault(call_round, {})[track.track_id] = observation
                 completed_observation_rounds.add(call_round)
                 immediate_packets = tuple(self.strategy.after_observation(observation))
                 self._install_packets(
@@ -531,9 +562,9 @@ class CollaborationEngineV2Agent:
 
             for completed_round in sorted(completed_observation_rounds):
                 paired = observations_by_round.get(completed_round, {})
-                if len(paired) != len(self.models):
+                if len(paired) != len(self.track_ids):
                     continue
-                observations = tuple(paired[model] for model in self.models)
+                observations = tuple(paired[track_id] for track_id in self.track_ids)
                 packets = tuple(self.strategy.after_round(observations))
                 self._install_packets(packets, tracks, completed_round, packet_events)
                 del observations_by_round[completed_round]
@@ -548,20 +579,22 @@ class CollaborationEngineV2Agent:
                 if self.clock() - started >= self.dispatch_cutoff_s:
                     cutoff_reached = True
                 else:
-                    busy_models = {value[0].model for value in pending.values()}
-                    for model in dict.fromkeys(track.model for track in ready_to_schedule):
-                        track = tracks[model]
-                        if track.model not in busy_models:
+                    busy_tracks = {value[0].track_id for value in pending.values()}
+                    for track_id in dict.fromkeys(
+                        track.track_id for track in ready_to_schedule
+                    ):
+                        track = tracks[track_id]
+                        if track.track_id not in busy_tracks:
                             schedule(track, check_cutoff=False)
 
             # A track held at its reserve is not attached to a pending task.
             # Reconsider it whenever its peer completes and may have produced a
             # packet, exhausted its calls, or advanced the deadline clock.
             if not verified_success and self.clock() - started < self.dispatch_cutoff_s:
-                busy_models = {value[0].model for value in pending.values()}
-                for model in self.models:
-                    if model not in busy_models:
-                        schedule(tracks[model], check_cutoff=False)
+                busy_tracks = {value[0].track_id for value in pending.values()}
+                for track_id in self.track_ids:
+                    if track_id not in busy_tracks:
+                        schedule(tracks[track_id], check_cutoff=False)
 
         round_number = max((track.calls for track in tracks.values()), default=0)
 
@@ -571,13 +604,20 @@ class CollaborationEngineV2Agent:
         return AgentResult(best_candidate, self._metadata(
             tracks, packet_events, deterministic, best_model=best_model,
             best_rank=best_rank, rounds=round_number, cutoff_reached=cutoff_reached,
-            provider_requests=self._provider_requests(services),
+            provider_requests=self._provider_requests(services, tracks),
             verification_events=verification_events,
         ))
 
-    def _provider_requests(self, services: Services) -> dict[str, int]:
+    def _provider_requests(
+        self, services: Services, tracks: dict[str, TrackState]
+    ) -> dict[str, int]:
         raw = getattr(services.llm, "requests_dispatched_by_model", {})
-        return {model: int(raw.get(model, 0)) for model in self.models}
+        if self.track_ids == self.models:
+            return {model: int(raw.get(model, 0)) for model in self.models}
+        return {
+            track_id: track.calls + len(track.retry_events)
+            for track_id, track in tracks.items()
+        }
 
     async def _verify_if_promising(
         self, proposal: str, lean_accepted: bool, services: Services
@@ -701,7 +741,7 @@ class CollaborationEngineV2Agent:
                 return await services.llm.complete(
                     model=track.model, messages=messages,
                     max_tokens=self.generation_max_tokens, temperature=self.temperature,
-                    seed=self.seed,
+                    seed=track.seed,
                     reasoning={"effort": "medium"},
                 )
             except CostFreeRateLimitError as exc:
@@ -851,12 +891,14 @@ class CollaborationEngineV2Agent:
             "packet_events": packet_events,
             "verification_policy": "single-flight-latest-v1",
             "verification_events": verification_events,
-            "tracks": {model: {
+            "tracks": {track_id: {
+                **({"model": track.model, "seed": track.seed}
+                   if track_id != track.model else {}),
                 "calls_attempted": track.calls,
                 "calls_dispatched": max(
-                    0, provider_requests[model] - len(track.retry_events)
+                    0, provider_requests[track_id] - len(track.retry_events)
                 ),
-                "physical_requests": provider_requests[model],
+                "physical_requests": provider_requests[track_id],
                 "pending_peer_packets": len(track.pending_packets),
                 "peer_packets_consumed": track.peer_packets_consumed,
                 "reserve_release_reason": track.reserve_release_reason,
@@ -865,7 +907,7 @@ class CollaborationEngineV2Agent:
                 "call_errors": track.call_errors, "retry_events": track.retry_events,
                 "failure_memory_entries": len(track.failure_memory),
                 "salvage_events": track.salvage_events,
-            } for model, track in tracks.items()},
+            } for track_id, track in tracks.items()},
         }
 
     def _checkpoint_metadata(self, track: TrackState, round_number: int,
@@ -903,9 +945,16 @@ def create_agent() -> CollaborationEngineV2Agent:
     packet_chars = _env_int("COLLAB_PEER_PACKET_CHARS", 6000, 1, 12000)
     raw_ceiling = os.environ.get("COLLAB_MAX_CALLS_PER_MODEL", "25")
     ceiling = None if raw_ceiling == "unlimited" else int(raw_ceiling)
+    is_qq = condition == "c0-qq"
+    models = (MODELS[0], MODELS[0]) if is_qq else MODELS
+    track_ids = ("qwen#1", "qwen#2") if is_qq else None
+    reserve = _env_int("COLLAB_FAST_TRACK_RESERVED_CALLS", 0, 0, 4)
+    if is_qq and (strategy_id != "none" or reserve != 0):
+        raise ValueError("c0-qq requires the silent strategy and no reserved call")
     return CollaborationEngineV2Agent(
-        strategy=create_strategy(strategy_id, packet_chars=packet_chars, models=MODELS), condition=condition,
-        models=MODELS,
+        strategy=create_strategy(strategy_id, packet_chars=packet_chars, models=models), condition=condition,
+        models=models,
+        track_ids=track_ids,
         max_calls_per_model=ceiling,
         generation_max_tokens=_env_int("COLLAB_GENERATION_MAX_TOKENS", 12000, 1000, 32000),
         temperature=float(os.environ.get("COLLAB_TEMPERATURE", "0.2")),
@@ -923,9 +972,7 @@ def create_agent() -> CollaborationEngineV2Agent:
         model_call_wall_timeout_s=float(
             os.environ.get("COLLAB_MODEL_CALL_WALL_TIMEOUT_S", "420")
         ),
-        fast_track_reserved_calls=_env_int(
-            "COLLAB_FAST_TRACK_RESERVED_CALLS", 0, 0, 4
-        ),
+        fast_track_reserved_calls=reserve,
         reserve_release_margin_s=float(
             os.environ.get("COLLAB_RESERVE_RELEASE_MARGIN_S", "120")
         ),

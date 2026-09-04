@@ -23,6 +23,7 @@ class Candidate:
     salvage: bool
     fast_track_reserved_calls: int
     models: tuple[str, ...] = MODELS
+    track_ids: tuple[str, ...] | None = None
 
 
 CANDIDATES = {
@@ -32,6 +33,10 @@ CANDIDATES = {
     "c0plus-reserve": Candidate("c0plus-reserve", "none", True, 1),
     "c1plus-fill-reserve": Candidate(
         "c1plus-fill-reserve", "progress-fill-event-latest-v2", True, 1
+    ),
+    "c0-qq": Candidate(
+        "c0-qq", "none", True, 0, (MODELS[0], MODELS[0]),
+        ("qwen#1", "qwen#2"),
     ),
     "qwen-solo-plus": Candidate("qwen-solo-plus", "none", True, 0, (MODELS[0],)),
     "gptoss-solo-plus": Candidate("gptoss-solo-plus", "none", True, 0, (MODELS[1],)),
@@ -55,6 +60,7 @@ def create_candidate(condition: str) -> CollaborationEngineV2Agent:
         strategy=create_strategy(spec.strategy, packet_chars=packet_chars, models=spec.models),
         condition=spec.condition,
         models=spec.models,
+        track_ids=spec.track_ids,
         max_calls_per_model=ceiling,
         generation_max_tokens=_integer("COLLAB_GENERATION_MAX_TOKENS", 12000),
         temperature=float(os.environ.get("COLLAB_TEMPERATURE", "0.2")),
@@ -99,6 +105,10 @@ def create_c1plus_fill_reserve_agent() -> CollaborationEngineV2Agent:
     return create_candidate("c1plus-fill-reserve")
 
 
+def create_c0_qq_agent() -> CollaborationEngineV2Agent:
+    return create_candidate("c0-qq")
+
+
 def create_qwen_solo_plus_agent() -> CollaborationEngineV2Agent:
     return create_candidate("qwen-solo-plus")
 
@@ -113,6 +123,7 @@ CANDIDATE_FACTORIES: dict[str, Callable[[], CollaborationEngineV2Agent]] = {
     "c2": create_c2_agent,
     "c0plus-reserve": create_c0plus_reserve_agent,
     "c1plus-fill-reserve": create_c1plus_fill_reserve_agent,
+    "c0-qq": create_c0_qq_agent,
     "qwen-solo-plus": create_qwen_solo_plus_agent,
     "gptoss-solo-plus": create_gptoss_solo_plus_agent,
 }

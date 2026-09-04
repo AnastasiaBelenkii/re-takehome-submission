@@ -23,12 +23,13 @@ STRATEGIES = {
     "c1plus": "progress-event-latest-v1",
     "c0plus-reserve": "none",
     "c1plus-fill-reserve": "progress-fill-event-latest-v2",
+    "c0-qq": "none",
     "qwen-solo-plus": "none",
     "gptoss-solo-plus": "none",
 }
 SALVAGE_CONDITIONS = frozenset({
     "c0plus", "c1plus", "c0plus-reserve", "c1plus-fill-reserve",
-    "qwen-solo-plus", "gptoss-solo-plus",
+    "c0-qq", "qwen-solo-plus", "gptoss-solo-plus",
 })
 AGENT_REFERENCES = {
     "qwen-solo-plus": "submission.candidates:create_qwen_solo_plus_agent",

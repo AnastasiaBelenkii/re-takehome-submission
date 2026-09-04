@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import hashlib
 import json
 from pathlib import Path
 
@@ -477,6 +478,81 @@ async def test_c0_c1_c2_first_round_requests_are_byte_identical_for_paired_seed(
         == {MODEL_A: "medium", MODEL_B: "medium"}
         for _services, result in arms
     )
+
+
+def test_reserve_arms_match_recorded_p07_first_request_bytes():
+    """Guard Stage 5 seed-6211 request bytes while adding explicit track IDs."""
+    problem_root = ROOT / "sample-problems/p07_least_divisible"
+    recorded_problem = Problem(
+        id="p07_least_divisible",
+        description=(problem_root / "problem.md").read_text(),
+        challenge=(problem_root / "challenge.lean").read_text(),
+    )
+    expected = {
+        MODEL_A: "08ea22bc70705e8307f83a91ecfbc5acf5543c47d7a95d93bd69deb36499d626",
+        MODEL_B: "43ec15c37174ee097881cbebd77004898f3039122cfb3f4c0841b3426b5d0139",
+    }
+    arms = (
+        agent(
+            NoCollaboration(), condition="c0plus-reserve", max_calls_per_model=25,
+            seed=6211, enable_salvage=True, fast_track_reserved_calls=1,
+        ),
+        agent(
+            ProgressFillPackets(packet_chars=6000, models=(MODEL_A, MODEL_B)),
+            condition="c1plus-fill-reserve", max_calls_per_model=25, seed=6211,
+            enable_salvage=True, fast_track_reserved_calls=1,
+        ),
+    )
+    for model in (MODEL_A, MODEL_B):
+        payloads = []
+        for arm in arms:
+            track = TrackState(
+                model, recorded_problem.challenge, calls=1, seed=6211
+            )
+            request = {
+                "model": model,
+                "messages": arm._messages(recorded_problem, track, "direct", None),
+                "max_tokens": arm.generation_max_tokens,
+                "temperature": arm.temperature,
+                "seed": track.seed,
+                "reasoning": {"effort": "medium"},
+            }
+            payloads.append(json.dumps(
+                request, sort_keys=True, separators=(",", ":")
+            ).encode())
+        assert payloads[0] == payloads[1]
+        assert hashlib.sha256(payloads[0]).hexdigest() == expected[model]
+
+
+@pytest.mark.asyncio
+async def test_c0_qq_runs_and_logs_two_independent_qwen_tracks(monkeypatch):
+    monkeypatch.setattr("collaboration_engine_v2.agent.tactic_candidate", lambda _source: None)
+    qq = agent(
+        NoCollaboration(), condition="c0-qq", models=(MODEL_A, MODEL_A),
+        track_ids=("qwen#1", "qwen#2"), max_calls_per_model=1,
+        seed=9201, enable_salvage=True, fast_track_reserved_calls=0,
+    )
+    services = Services(
+        {MODEL_A: [source("qq1"), source("qq2")]},
+        [True, True],
+        verifications=[True],
+    )
+
+    result = await qq.solve(problem(), services)
+
+    assert [request["model"] for request in services.llm.requests] == [MODEL_A, MODEL_A]
+    assert [request["seed"] for request in services.llm.requests] == list(qq.track_seeds)
+    assert len(set(qq.track_seeds)) == 2
+    assert set(result.metadata["tracks"]) == {"qwen#1", "qwen#2"}
+    assert all(
+        track["model"] == MODEL_A and track["calls_dispatched"] == 1
+        for track in result.metadata["tracks"].values()
+    )
+    completed = [
+        event for event in result.metadata["verification_events"]
+        if event["event"] == "completed"
+    ]
+    assert completed and completed[0]["passed"] is True
 
 
 @pytest.mark.asyncio

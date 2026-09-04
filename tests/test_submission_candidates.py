@@ -16,6 +16,7 @@ from submission.candidates import CANDIDATE_FACTORIES
         ("c2", "reciprocal-every-eligible-v1", False, 0),
         ("c0plus-reserve", "none", True, 1),
         ("c1plus-fill-reserve", "progress-fill-event-latest-v2", True, 1),
+        ("c0-qq", "none", True, 0),
         ("qwen-solo-plus", "none", True, 0),
         ("gptoss-solo-plus", "none", True, 0),
     ],
@@ -49,6 +50,17 @@ def test_solo_candidate_has_exactly_one_model_and_no_packet_path(condition, mode
     agent = CANDIDATE_FACTORIES[condition]()
 
     assert agent.models == (model,)
+    assert agent.strategy.strategy_id == "none"
+    assert agent.enable_salvage is True
+    assert agent.fast_track_reserved_calls == 0
+
+
+def test_c0_qq_has_two_named_qwen_tracks_and_no_reserve():
+    agent = CANDIDATE_FACTORIES["c0-qq"]()
+
+    assert agent.models == (MODEL_A, MODEL_A)
+    assert agent.track_ids == ("qwen#1", "qwen#2")
+    assert len(set(agent.track_seeds)) == 2
     assert agent.strategy.strategy_id == "none"
     assert agent.enable_salvage is True
     assert agent.fast_track_reserved_calls == 0

@@ -54,7 +54,7 @@ class HarnessSettings:
     time_limit_s: float
     n_workers: int
     lean_check_timeout_s: int = 120
-    comparator_timeout_s: int = 180
+    comparator_timeout_s: int = 420
     verify_reserve_s: int = 240
 
     def __post_init__(self) -> None:
@@ -82,6 +82,6 @@ class HarnessSettings:
             time_limit_s=_positive_float("VM_TIME_LIMIT_S", 28800.0),
             n_workers=n_workers if n_workers is not None else _positive_int("N_WORKERS", 1),
             lean_check_timeout_s=_positive_int("LEAN_CHECK_TIMEOUT_S", 120),
-            comparator_timeout_s=_positive_int("COMPARATOR_TIMEOUT_S", 180),
+            comparator_timeout_s=_positive_int("COMPARATOR_TIMEOUT_S", 420),
             verify_reserve_s=_positive_int("VM_VERIFY_RESERVE_S", 240),
         )

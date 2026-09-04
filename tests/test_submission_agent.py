@@ -8,7 +8,6 @@ from re_harness import Problem
 from re_harness.models import MODEL_A, MODEL_B
 from submission.agent import (
     DESIGN_ID,
-    JUDGE_MAX_OUTPUT_TOKENS,
     SubmissionAgent,
     create_agent,
 )
@@ -162,12 +161,16 @@ async def test_fixed_model_fallback_after_both_tracks_exhaust_repairs():
     assert len(result.metadata["tracks"][MODEL_B]["attempts"]) == 2
 
 
-def test_judged_factory_uses_external_limits_only_but_experiments_do_not():
+def test_judged_factory_uses_external_limits_only_but_experiments_do_not(monkeypatch):
+    monkeypatch.setenv("VM_TIME_LIMIT_S", "28800")
+    monkeypatch.delenv("COLLAB_MAX_CALLS_PER_MODEL", raising=False)
+    monkeypatch.delenv("COLLAB_DISPATCH_CUTOFF_S", raising=False)
     judged = create_agent()
     experimental = SubmissionAgent()
 
-    assert judged.external_limits_only is True
-    assert {agent.max_tokens for agent in judged._agents} == {JUDGE_MAX_OUTPUT_TOKENS}
+    assert judged.condition == "c1plus-fill-reserve"
+    assert judged.max_calls_per_model is None
+    assert judged.dispatch_cutoff_s == 28080
     assert experimental.external_limits_only is False
     assert {agent.max_turns for agent in experimental._agents} == {25}
 

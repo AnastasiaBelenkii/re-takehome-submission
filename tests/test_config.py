@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from re_harness.config import load_local_env
+from re_harness.config import HarnessSettings, load_local_env
 
 
 def test_dotenv_does_not_override_exported_environment(tmp_path, monkeypatch):
@@ -13,3 +13,10 @@ def test_dotenv_does_not_override_exported_environment(tmp_path, monkeypatch):
     assert os.environ["OPENROUTER_API_KEY"] == "exported-key"
     assert os.environ["N_WORKERS"] == "7"
 
+
+def test_default_comparator_timeout_covers_observed_cold_start(monkeypatch):
+    monkeypatch.delenv("COMPARATOR_TIMEOUT_S", raising=False)
+
+    settings = HarnessSettings.from_env()
+
+    assert settings.comparator_timeout_s == 420

@@ -17,6 +17,7 @@ ROOT = Path(os.environ.get("STAGE6_PUSH_REPO", "/opt/stage6-pusher/repo"))
 ARCHIVE = ROOT / "evidence/archives/stage6-confirm-20260903"
 LOG = ROOT / "experiments/stage6-expanded/LOG.md"
 REMOTE = "/opt/stage6-confirm-20260903/global"
+SOLO_REMOTE = "/opt/stage6-confirm-20260903/solo-global"
 HOSTS = ("marketplace", "worker2", "worker3", "worker4", "worker5", "worker6", "worker7", "worker8", "worker10")
 TARGETS = {
     "marketplace": None,
@@ -55,13 +56,21 @@ def collect() -> tuple[list[dict], dict]:
         destination.mkdir(parents=True, exist_ok=True)
         command = ["rsync", "-a", "--timeout=30", "--include=*/"]
         command.extend(f"--include={name}" for name in KEEP)
-        source = f"{REMOTE}/{host}/cells/"
         target = TARGETS[host]
-        command.extend(("--exclude=*", source if target is None else f"{target}:{source}", f"{destination}/"))
-        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for remote_root in (REMOTE, SOLO_REMOTE):
+            source = f"{remote_root}/{host}/cells/"
+            source_path = Path(source)
+            if target is None and not source_path.exists():
+                continue
+            this_command = list(command)
+            this_command.extend(("--exclude=*", source if target is None else f"{target}:{source}", f"{destination}/"))
+            subprocess.run(this_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     source = Path(f"{REMOTE}/global-controller-state.json")
     if source.exists():
         shutil.copy2(source, ARCHIVE / "global-controller-state.json")
+    solo_source = Path(f"{SOLO_REMOTE}/global-controller-state.json")
+    if solo_source.exists():
+        shutil.copy2(solo_source, ARCHIVE / "solo-global-controller-state.json")
     state_path = ARCHIVE / "global-controller-state.json"
     state = json.loads(state_path.read_text()) if state_path.exists() else {}
     results = []
@@ -73,6 +82,16 @@ def collect() -> tuple[list[dict], dict]:
         if value.get("problem_id"):
             results.append(value)
     return results, state
+
+
+def read_state(path: str) -> dict:
+    state_path = Path(path) / "global-controller-state.json"
+    if not state_path.exists():
+        return {}
+    try:
+        return json.loads(state_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
 
 
 def counts(results: list[dict]) -> tuple[Counter, Counter]:
@@ -107,6 +126,16 @@ def main() -> int:
         passed, totals = counts(results)
         log_text = LOG.read_text() if LOG.exists() else ""
         changed = False
+        if queued == 0 and "solo extension launched" not in log_text and "solo extension skipped:" not in log_text:
+            if now_pt().time() < clock_time(23, 0):
+                launch = subprocess.run(
+                    ("sh", str(ROOT / "scripts/launch_stage6_solo_extension.sh")),
+                    cwd=ROOT, text=True, capture_output=True,
+                )
+                if launch.returncode != 0:
+                    append_log(f"solo extension launch failed before dispatch: {launch.stderr.strip()}")
+                    changed = True
+                log_text = LOG.read_text() if LOG.exists() else log_text
         for when in (clock_time(21, 30), clock_time(22, 30), clock_time(23, 30), clock_time(0, 30)):
             marker = when.strftime("%H:%M PT confirm status")
             due = now_pt().time() >= when if when.hour else now_pt().time() < clock_time(12, 0) and now_pt().time() >= when

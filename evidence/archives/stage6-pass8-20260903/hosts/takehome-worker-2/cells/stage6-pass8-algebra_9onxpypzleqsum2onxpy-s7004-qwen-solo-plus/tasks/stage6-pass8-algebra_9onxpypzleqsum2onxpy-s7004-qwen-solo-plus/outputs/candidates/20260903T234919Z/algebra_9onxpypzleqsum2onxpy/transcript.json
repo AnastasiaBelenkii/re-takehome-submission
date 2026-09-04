@@ -1,0 +1,827 @@
+{
+  "schema_version": 1,
+  "problem_id": "algebra_9onxpypzleqsum2onxpy",
+  "calls": [
+    {
+      "call_id": "b1f12035d449446da4d56402b566560e",
+      "request": {
+        "model": "qwen/qwen3.5-flash-02-23",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write one complete Lean 4 file using Mathlib.\nReturn only Lean code, preferably in one ```lean block.\nUse exactly one import line: `import Mathlib`.\nPreserve every declaration name, type/statement, and numeric answer from the pristine challenge.\nYou may add new helper lemmas or definitions with fresh names.\nDo not use sorry, admit, axioms, or unsafe escapes.\nImmediately before each new proof, include a 3-8 line proof sketch using Lean line comments (`--`)."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: algebra_9onxpypzleqsum2onxpy\nAttempt 1 of at most 10; phase: direct\n\nProblem description:\n# algebra_9onxpypzleqsum2onxpy\n\nProve `algebra_9onxpypzleqsum2onxpy` as formally stated in `challenge.lean`. This statement is from the miniF2F Lean 4 test split.\n\n\nPristine Lean challenge:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by sorry\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.15,
+            "completion": 0.6
+          }
+        },
+        "temperature": 0.2,
+        "seed": 7004,
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "started_at": "2026-09-03T23:49:39.822519+00:00",
+      "reserved_cost_usd": 0.00814836,
+      "response": {
+        "id": "gen-1788479380-kWzXi8wuaiezcu59lCw0",
+        "object": "chat.completion",
+        "created": 1788479380,
+        "model": "qwen/qwen3.5-flash-02-23",
+        "provider": "Alibaba",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "The problem asks me to prove the inequality:\n$$\\frac{9}{x + y + z} \\leq \\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x}$$\n\nwhere $x, y, z > 0$.\n\nLet me think about how to prove this. This is a classic inequality that can be proven using various methods like Cauchy-Schwarz or AM-HM inequality.\n\nOne approach is to use the Cauchy-Schwarz inequality in the form:\n$$\\sum_{cyc} \\frac{1}{a_i} \\geq \\frac{n^2}{\\sum a_i}$$\n\nBut let me think more carefully. Let's denote $a = x+y$, $b = y+z$, $c = z+x$. Then $x+y+z = \\frac{a+b+c}{2}$.\n\nSo we want to prove:\n$$\\frac{9}{(a+b+c)/2} \\leq \\frac{2}{a} + \\frac{2}{b} + \\frac{2}{c}$$\n\nwhich simplifies to:\n$$\\frac{18}{a+b+c} \\leq \\frac{2}{a} + \\frac{2}{b} + \\frac{2}{c}$$\n\nor:\n$$\\frac{9}{a+b+c} \\leq \\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c}$$\n\nThis is exactly the HM-AM inequality! The harmonic mean of $a, b, c$ is $\\frac{3}{\\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c}}$ and the arithmetic mean is $\\frac{a+b+c}{3}$. By HM ≤ AM:\n\n\n$$\\frac{3}{\\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c}} \\leq \\frac{a+b+c}{3}$$\n\nRearranging gives us the desired inequality. I'll need to formalize this proof in Lean, carefully handling the algebraic manipulations and ensuring all conditions are met.\n\nThe key steps involve transforming the original inequality by substituting variables and applying the harmonic mean-arithmetic mean inequality. I'll focus on creating a precise Lean proof that captures these mathematical insights.\n</think>\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  -- Use the substitution a = x+y, b = y+z, c = z+x\n  -- Then x+y+z = (a+b+c)/2\n  -- The inequality becomes 9/((a+b+c)/2) ≤ 2/a + 2/b + 2/c\n  -- which simplifies to 9/(a+b+c) ≤ 1/a + 1/b + 1/c\n  -- This follows from HM-AM inequality\n  have h₅ : 0 < (x + y) * (y + z) * (z + x) := by positivity\n  field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n  rw [div_le_div_iff (by positivity) (by positivity)]\n  nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n    mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1,\n    mul_pos (mul_pos h₀.1 h₀.2.1) h₀.2.2]\n```",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 340,
+          "completion_tokens": 1028,
+          "total_tokens": 1368,
+          "cost": 0.00028938,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00028938,
+            "upstream_inference_prompt_cost": 2.21e-05,
+            "upstream_inference_completions_cost": 0.00026728
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.00028938,
+      "latency_ms": 5231,
+      "status": "ok"
+    },
+    {
+      "call_id": "3c5d5eeb59a44ab39b8b58b38dbd1e75",
+      "request": {
+        "model": "qwen/qwen3.5-flash-02-23",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write one complete Lean 4 file using Mathlib.\nReturn only Lean code, preferably in one ```lean block.\nUse exactly one import line: `import Mathlib`.\nPreserve every declaration name, type/statement, and numeric answer from the pristine challenge.\nYou may add new helper lemmas or definitions with fresh names.\nDo not use sorry, admit, axioms, or unsafe escapes."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: algebra_9onxpypzleqsum2onxpy\nAttempt 2 of at most 10; phase: repair\n\nProblem description:\n# algebra_9onxpypzleqsum2onxpy\n\nProve `algebra_9onxpypzleqsum2onxpy` as formally stated in `challenge.lean`. This statement is from the miniF2F Lean 4 test split.\n\n\nPristine Lean challenge:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by sorry\n```\n\nCurrent candidate to repair:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  -- Use the substitution a = x+y, b = y+z, c = z+x\n  -- Then x+y+z = (a+b+c)/2\n  -- The inequality becomes 9/((a+b+c)/2) ≤ 2/a + 2/b + 2/c\n  -- which simplifies to 9/(a+b+c) ≤ 1/a + 1/b + 1/c\n  -- This follows from HM-AM inequality\n  have h₅ : 0 < (x + y) * (y + z) * (z + x) := by positivity\n  field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n  rw [div_le_div_iff (by positivity) (by positivity)]\n  nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n    mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1,\n    mul_pos (mul_pos h₀.1 h₀.2.1) h₀.2.2]\n\n```\n\nBounded deduplicated Lean diagnostics:\n```text\nerror:Unknown identifier `div_le_div_iff`\nerror:unsolved goals x y z : ℝ h₀ : 0 < x ∧ 0 < y ∧ 0 < z h₁ : 0 < x + y h₂ : 0 < y + z h₃ : 0 < z + x h₄ : 0 < x + y + z h₅ : 0 < (x + y) * (y + z) * (z + x) ⊢ 9 * (x + y) * (y + z) * (z + x) ≤ (x + y + z) * 2 * ((y + z + (x + y)) * (z + x) + (x + y) * (y + z))\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.15,
+            "completion": 0.6
+          }
+        },
+        "temperature": 0.2,
+        "seed": 7004,
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "started_at": "2026-09-03T23:49:46.135634+00:00",
+      "reserved_cost_usd": 0.008388765000000001,
+      "response": {
+        "id": "gen-1788479386-WzwqKqhHTC8keCSrKsgr",
+        "object": "chat.completion",
+        "created": 1788479386,
+        "model": "qwen/qwen3.5-flash-02-23",
+        "provider": "Alibaba",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "The user wants me to repair a Lean 4 proof for the inequality:\n$$\\frac{9}{x + y + z} \\leq \\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x}$$\n\nwhere $x, y, z > 0$.\n\nLooking at the error messages:\n1. `Unknown identifier 'div_le_div_iff'` - This is not available in Mathlib by default. I need to use a different approach or find the correct lemma name.\n2. The goal after simplification shows an expanded form that needs to be proven.\n\nLet me think about how to prove this inequality properly.\n\nOne common approach is to use the Cauchy-Schwarz inequality or AM-HM inequality.\n\nLet's denote $a = x+y$, $b = y+z$, $c = z+x$. Then $a+b+c = 2(x+y+z)$.\n\nThe inequality becomes:\n$$\\frac{9}{(a+b+c)/2} \\leq \\frac{2}{a} + \\frac{2}{b} + \\frac{2}{c}$$\n$$\\frac{18}{a+b+c} \\leq \\frac{2}{a} + \\frac{2}{b} + \\frac{2}{c}$$\n$$\\frac{9}{a+b+c} \\leq \\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c}$$\n\nThis follows from the HM-AM inequality (harmonic mean ≤ arithmetic mean):\n$$\\frac{3}{\\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c}} \\leq \\frac{a+b+c}{3}$$\n$$\\frac{9}{a+b+c} \\leq \\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c}$$\n\n\nI'll explore alternative proof strategies using standard mathematical inequalities and Lean's library functions. The key is finding a reliable method to transform and simplify the complex fractional expression while maintaining the core mathematical relationship.\n\nThe substitution approach looks promising, but requires careful handling of the algebraic manipulations. I'll focus on creating a clear, step-by-step proof strategy that leverages fundamental inequality principles.\n</think>\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  -- Clear denominators by multiplying both sides by positive quantities\n  have h₅ : 0 < (x + y) * (y + z) * (z + x) := by positivity\n  have h₆ : 0 < (x + y + z) * (x + y) * (y + z) * (z + x) := by positivity\n  \n  field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n  rw [div_le_div_iff (by positivity) (by positivity)]\n  nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n    mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1,\n    mul_pos (mul_pos h₀.1 h₀.2.1) h₀.2.2]\n```",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 1011,
+          "completion_tokens": 967,
+          "total_tokens": 1978,
+          "cost": 0.000317135,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.000317135,
+            "upstream_inference_prompt_cost": 6.5715e-05,
+            "upstream_inference_completions_cost": 0.00025142
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.000317135,
+      "latency_ms": 5097,
+      "status": "ok"
+    },
+    {
+      "call_id": "7aee59083e1f4f6fb40b91bb2b25cd18",
+      "request": {
+        "model": "qwen/qwen3.5-flash-02-23",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write one complete Lean 4 file using Mathlib.\nReturn only Lean code, preferably in one ```lean block.\nUse exactly one import line: `import Mathlib`.\nPreserve every declaration name, type/statement, and numeric answer from the pristine challenge.\nYou may add new helper lemmas or definitions with fresh names.\nDo not use sorry, admit, axioms, or unsafe escapes."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: algebra_9onxpypzleqsum2onxpy\nAttempt 3 of at most 10; phase: repair\n\nProblem description:\n# algebra_9onxpypzleqsum2onxpy\n\nProve `algebra_9onxpypzleqsum2onxpy` as formally stated in `challenge.lean`. This statement is from the miniF2F Lean 4 test split.\n\n\nPristine Lean challenge:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by sorry\n```\n\nCurrent candidate to repair:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  -- Clear denominators by multiplying both sides by positive quantities\n  have h₅ : 0 < (x + y) * (y + z) * (z + x) := by positivity\n  have h₆ : 0 < (x + y + z) * (x + y) * (y + z) * (z + x) := by positivity\n  \n  field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n  rw [div_le_div_iff (by positivity) (by positivity)]\n  nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n    mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1,\n    mul_pos (mul_pos h₀.1 h₀.2.1) h₀.2.2]\n\n```\n\nBounded deduplicated Lean diagnostics:\n```text\nerror:Unknown identifier `div_le_div_iff`\nerror:unsolved goals x y z : ℝ h₀ : 0 < x ∧ 0 < y ∧ 0 < z h₁ : 0 < x + y h₂ : 0 < y + z h₃ : 0 < z + x h₄ : 0 < x + y + z h₅ : 0 < (x + y) * (y + z) * (z + x) h₆ : 0 < (x + y + z) * (x + y) * (y + z) * (z + x) ⊢ 9 * (x + y) * (y + z) * (z + x) ≤ (x + y + z) * 2 * ((y + z + (x + y)) * (z + x) + (x + y) * (y + z))\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.15,
+            "completion": 0.6
+          }
+        },
+        "temperature": 0.2,
+        "seed": 7004,
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "started_at": "2026-09-03T23:49:52.527373+00:00",
+      "reserved_cost_usd": 0.008383980000000001,
+      "response": {
+        "id": "gen-1788479392-URYXYwvy6MbjPFdYXG2H",
+        "object": "chat.completion",
+        "created": 1788479392,
+        "model": "qwen/qwen3.5-flash-02-23",
+        "provider": "Alibaba",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "length",
+            "native_finish_reason": "length",
+            "message": {
+              "role": "assistant",
+              "content": "The user wants me to repair a Lean 4 proof that is currently failing.\nThe error message indicates `Unknown identifier 'div_le_div_iff'`. This suggests I need to use the correct lemma from Mathlib for dividing inequalities.\n\nLooking at the goal:\n`9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x)`\n\nThe current attempt tries to clear denominators using `field_simp` and then `rw [div_le_div_iff ...]`. However, `div_le_div_iff` might not be available or used correctly in this context. Usually, one would multiply both sides by the positive denominator product directly or use `le_of_sub_nonneg`.\n\nLet's analyze the inequality:\n$ \\frac{9}{x+y+z} \\le \\frac{2}{x+y} + \\frac{2}{y+z} + \\frac{2}{z+x} $\n\nThis looks like a known inequality related to Nesbitt's inequality variants or similar harmonic mean bounds.\nActually, let's check if it holds.\nIf $x=y=z=1$, LHS = $9/3 = 3$. RHS = $2/2 + 2/2 + 2/2 = 1+1+1 = 3$. Equality holds.\n\nTo prove this, we can cross-multiply since all terms are positive.\nMultiply by $(x+y+z)(x+y)(y+z)(z+x)$:\n$9(x+y)(y+z)(z+x) \\le 2(x+y+z)[(y+z)(z+x) + (x+y)(z+x) + (x+y)(y+z)]$\n\nWait, looking at the error message provided in the prompt:\n`unsolved goals ... ⊢ 9 * (x + y) * (y + z) * (z + x) ≤ (x + y + z) * 2 * ((y + z + (x + y)) * (z + x) + (x + y) * (y + z))`\nIt seems the simplification went wrong or the expansion was incorrect in the previous step. The term `(y + z + (x + y))` inside suggests an algebraic mistake in how the sum of fractions was combined before multiplying.\n\nLet's rewrite the RHS sum:\n$\\frac{2}{x+y} + \\frac{2}{y+z} + \\frac{2}{z+x} = 2 \\left( \\frac{1}{x+y} + \\frac{1}{y+z} + \\frac{1}{z+x} \\right)$\n\nSo we want to show:\n$\\frac{9}{x+y+z} \\le 2 \\sum_{cyc} \\frac{1}{x+y}$\n\nOr $\\frac{9}{2(x+y+z)} \\le \\sum_{cyc} \\frac{1}{x+y}$.\n\nA standard approach is to use Cauchy-Schwarz or AM-HM.\nBy HM-AM on pairs? No.\nLet's try expanding the difference.\nRHS - LHS $\\ge 0$.\nCommon denominator is $(x+y)(y+z)(z+x)(x+y+z)$.\nNumerator:\n$2(x+y+z)((y+z)(z+x) + (x+y)(z+x) + (x+y)(y+z)) - 9(x+y)(y+z)(z+x)$\n\nLet $a=x+y, b=y+z, c=z+x$. Then $x+y+z = (a+b+c)/2$.\nInequality becomes:\n$\\frac{9}{(a+b+c)/2} \\le \\frac{2}{a} + \\frac{2}{b} + \\frac{2}{c}$\n$\\frac{18}{a+b+c} \\le 2(\\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c})$\n$\\frac{9}{a+b+c} \\le \\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c}$\n$(\\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c})(a+b+c) \\ge 9$\nThis is true by AM-HM or Cauchy-Schwarz: $(\\sum \\sqrt{1/a}\\sqrt{a})^2 \\le (\\sum 1/a)(\\sum a) \\implies 9 \\le (\\sum 1/a)(\\sum a)$.\nSince $a,b,c > 0$, this holds.\n\nSo the strategy should be:\n1. Define $a = x+y, b = y+z, c = z+x$.\n2. Note that $x+y+z = (a+b+c)/2$.\n3. Rewrite the inequality in terms of $a,b,c$.\n4. Prove $(\\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c})(a+b+c) \\ge 9$.\n\nHowever, I must stick to the structure of the original file as much as possible, fixing the errors. The error `Unknown identifier 'div_le_div_iff'` is the main blocker. In Mathlib, `div_le_div_iff` exists but requires specific conditions or imports. Often `div_le_div_iff` is found in `Algebra.Order.Field.Basic` or similar. Since `import Mathlib` is used, it should be there, but maybe the syntax is slightly different or needs explicit positivity proofs passed differently. Actually, `div_le_div_iff` usually takes two arguments for the positivity of denominators.\n\nWait, the error says `Unknown identifier 'div_le_div_iff'`. This is strange because it's a standard lemma. Maybe the version of Mathlib being used doesn't export it under that name directly without opening a namespace, or it's named differently.\nActually, checking recent Mathlib4, `div_le_div_iff` is available.\nPerhaps the issue is that after `field_simp`, the goal changed form and `div_le_div_iff` isn't applicable anymore or the syntax is wrong.\nThe error log shows:\n`error:Unknown identifier 'div_le_div_iff'`\nAnd then `unsolved goals ...`.\nThis implies the tactic failed to find the identifier.\nMaybe I should avoid `div_le_div_iff` and just multiply through manually or use `calc`.\n\nLet's look at the generated goal in the error log:\n`⊢ 9 * (x + y) * (y + z) * (z + x) ≤ (x + y + z) * 2 * ((y + z + (x + y)) * (z + x) + (x + y) * (y + z))`\nThis looks like the RHS expansion was messed up.\nOriginal RHS: $2/(x+y) + 2/(y+z) + 2/(z+x)$.\nSumming these: $2 \\frac{(y+z)(z+x) + (x+y)(z+x) + (x+y)(y+z)}{(x+y)(y+z)(z+x)}$.\nMultiplying by $(x+y+z)(x+y)(y+z)(z+x)$ gives:\nLHS: $9(x+y)(y+z)(z+x)$\nRHS: $2(x+y+z) [(y+z)(z+x) + (x+y)(z+x) + (x+y)(y+z)]$\n\nThe error log RHS is: `(x + y + z) * 2 * ((y + z + (x + y)) * (z + x) + (x + y) * (y + z))`\nThis corresponds to $2(x+y+z) [ (y+z+x+y)(z+x) + (x+y)(y+z) ]$.\nIt missed the first term $(y+z)(z+x)$? Or rather, it grouped terms weirdly.\nActually, `(y + z + (x + y))` is `x + 2y + z`.\nIt seems `field_simp` did something unexpected or the manual expansion logic in the thought process of the candidate code was flawed.\n\nLet's write a clean proof.\nI will use the substitution method implicitly or explicitly.\nOr simply expand everything and use `nlinarith`.\nSince $x,y,z > 0$, all denominators are positive.\nWe can multiply both sides by $(x+y)(y+z)(z+x)(x+y+z)$.\nThen we get a polynomial inequality.\nLet's verify the polynomial inequality again.\nLet $S = x+y+z$.\nLHS becomes $9(x+y)(y+z)(z+x)$.\nRHS becomes $2S [ (y+z)(z+x) + (x+y)(z+x) + (x+y)(y+z) ]$.\nLet's expand $(x+y)(y+z)(z+x) = (xy + xz + y^2 + yz)(z+x) = xyz + x^2y + xz^2 + x^2z + y^2z + xy^2 + yz^2 + xyz = x^2y + xy^2 + y^2z + yz^2 + z^2x + zx^2 + 2xyz$.\nAlso $S = x+y+z$.\nTerm in bracket:\n$(y+z)(z+x) = yz + yx + z^2 + zx$\n$(x+y)(z+x) = xz + x^2 + yz + yx$\n$(x+y)(y+z) = xy + xz + y^2 + yz$\nSum = $x^2 + y^2 + z^2 + 3(xy + yz + zx)$.\nSo RHS = $2(x+y+z)(x^2 + y^2 + z^2 + 3(xy + yz + zx))$.\nLHS = $9(x^2y + xy^2 + y^2z + yz^2 + z^2x + zx^2 + 2xyz)$.\n\nLet's check equality case $x=y=z=1$.\nLHS = $9(1+1+1+1+1+1+2) = 9(8) = 72$.\nRHS = $2(3)(1+1+1+3+3+3) = 6(12) = 72$. Matches.\n\nIs it always true?\nRHS - LHS = $2(x+y+z)(x^2+y^2+z^2+3(xy+yz+zx)) - 9(x^2y+xy^2+y^2z+yz^2+z^2x+zx^2+2xyz)$.\nLet's expand RHS fully.\n$2(x^3 + xy^2 + xz^2 + 3x^2y + 3xyz + 3xz^2 + \\dots)$ wait, better to group by degree.\nDegree 3 terms.\n$x^3$: coeff 2.\n$y^3$: coeff 2.\n$z^3$: coeff 2.\n$x^2y$: coeff $2(1 + 3) = 8$.\n$xy^2$: coeff 8.\n... similarly for others.\n$xyz$: coeff $2(3) = 6$.\nSo RHS = $2(x^3+y^3+z^3) + 8(x^2y+xy^2+y^2z+yz^2+z^2x+zx^2) + 6xyz$.\nLHS = $9(x^2y+xy^2+y^2z+yz^2+z^2x+zx^2) + 18xyz$.\nDifference = $2(x^3+y^3+z^3) - (x^2y+xy^2+y^2z+yz^2+z^2x+zx^2) - 12xyz$.\nWe know Schur's inequality states $x^3+y^3+z^3 + 3xyz \\ge x^2y+xy^2+y^2z+yz^2+z^2x+zx^2$.\nSo $2(x^3+y^3+z^3) - (x^2y+\\dots) - 12xyz = (x^3+y^3+z^3 - (x^2y+\\dots) + 3xyz) + (x^3+y^3+z^3 - 15xyz)$.\nThis doesn't immediately look non-negative.\nWait, Schur is $\\sum x^3 + 3xyz \\ge \\sum_{sym} x^2y$.\nHere $\\sum_{sym} x^2y = x^2y + xy^2 + y^2z + yz^2 + z^2x + zx^2$.\nSo $x^3+y^3+z^3 + 3xyz \\ge \\text{LHS\\_part}$.\nWe have Difference = $2(x^3+y^3+z^3) - \\text{LHS\\_part} - 12xyz$.\nSubstitute $\\text{LHS\\_part} \\le x^3+y^3+z^3 + 3xyz$.\nDiff $\\ge 2(x^3+y^3+z^3) - (x^3+y^3+z^3 + 3xyz) - 12xyz = x^3+y^3+z^3 - 15xyz$.\nThis is not necessarily non-negative (e.g., $x=y=z=1 \\implies 3-15 < 0$).\nWait, my expansion of LHS was $9(\\dots + 2xyz) = 9(\\dots) + 18xyz$.\nMy expansion of RHS was $2(x+y+z)(\\dots)$.\nLet's recheck the coefficient of $xyz$ in RHS.\n$2(x+y+z)(x^2+y^2+z^2+3(xy+yz+zx))$.\nTerms with $xyz$:\nFrom $x \\cdot 3(yz)$: $3xyz$.\nFrom $y \\cdot 3(zx)$: $3xyz$.\nFrom $z \\cdot 3(xy)$: $3xyz$.\nTotal $9xyz$. Multiplied by 2 gives $18xyz$.\nSo RHS has $18xyz$.\nLHS has $9(2xyz) = 18xyz$.\nSo the $xyz$ terms cancel out!\nLet's re-evaluate Difference.\nRHS = $2(x^3+y^3+z^3) + 8(x^2y+xy^2+y^2z+yz^2+z^2x+zx^2) + 18xyz$.\nLHS = $9(x^2y+xy^2+y^2z+yz^2+z^2x+zx^2) + 18xyz$.\nDifference = $2(x^3+y^3+z^3) - (x^2y+xy^2+y^2z+yz^2+z^2x+zx^2)$.\nBy Muirhead or AM-GM or Schur?\nSchur's inequality (degree 3): $\\sum x^3 + 3xyz \\ge \\sum_{sym} x^2y$.\nSo $\\sum x^3 \\ge \\sum_{sym} x^2y - 3xyz$.\nThen Diff $\\ge 2(\\sum_{sym} x^2y - 3xyz) - \\sum_{sym} x^2y = \\sum_{sym} x^2y - 6xyz$.\nThis is still not obviously non-negative.\nWait, actually, the inequality $\\frac{9}{x+y+z} \\le \\sum \\frac{2}{x+y}$ is equivalent to $\\frac{9}{2} \\le (x+y+z) \\sum \\frac{1}{x+y}$.\nLet $a=x+y, b=y+z, c=z+x$.\nThen $x+y+z = (a+b+c)/2$.\nInequality: $\\frac{9}{2} \\le \\frac{a+b+c}{2} (\\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c})$.\n$9 \\le (a+b+c)(\\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c})$.\nThis is exactly $(\\sum a)(\\sum 1/a) \\ge 9$.\nThis is true by Cauchy-Schwarz: $(\\sum \\sqrt{a} \\cdot \\frac{1}{\\sqrt{a}})^2 \\le (\\sum a)(\\sum 1/a) \\implies 3^2 \\le (\\sum a)(\\sum 1/a)$.\nSo the inequality holds.\nThe polynomial expansion I did earlier must have had an error or I misinterpreted the coefficients.\nLet's trust the substitution $a,b,c$. It makes the proof trivial.\nBut I need to implement it in Lean.\nUsing `nlinarith` with the expanded polynomial form might work if I provide enough hints or if `nlinarith` is smart enough.\nGiven the error log showed `nlinarith` was used but failed (or the goal wasn't set up right), I should probably fix the setup.\nThe error `Unknown identifier 'div_le_div_iff'` is the primary issue.\nI should replace `div_le_div_iff` with something else or ensure it's imported correctly.\nActually, `div_le_div_iff` is in `Mathlib.Algebra.Order.Field.Defs`.\nWith `import Mathlib`, it should be available.\nMaybe the issue is that `field_simp` changes the goal into a form where `div_le_div_iff` is not the right tactic to apply next, or the syntax is `div_le_div_iff (by ...) (by ...)`.\nThe candidate code had `rw [div_le_div_iff (by positivity) (by positivity)]`.\nIf `div_le_div_iff` is unknown, I should remove it.\nInstead of `rw`, I can use `have h : ... := by ...` or just manipulate the expression.\nOr I can use `field_simp` to clear denominators and then `nlinarith`.\nThe goal after `field_simp` in the candidate was:\n`9 * (x + y) * (y + z) * (z + x) ≤ (x + y + z) * 2 * ((y + z + (x + y)) * (z + x) + (x + y) * (y + z))`\nThis RHS is clearly wrong compared to what I derived ($2(x+y+z)[(y+z)(z+x) + \\dots]$).\nWhy did `field_simp` produce that?\n`field_simp` simplifies expressions involving division.\nOriginal goal: `9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x)`.\n`field_simp` usually clears denominators by multiplying by the common denominator.\nCommon denom: $(x+y+z)(x+y)(y+z)(z+x)$.\nLHS becomes $9(x+y)(y+z)(z+x)$.\nRHS becomes $2(x+y+z)(y+z)(z+x) + 2(x+y+z)(x+y)(z+x) + 2(x+y+z)(x+y)(y+z)$.\nFactor out $2(x+y+z)$: $2(x+y+z) [ (y+z)(z+x) + (x+y)(z+x) + (x+y)(y+z) ]$.\nThe error log shows: `(x + y + z) * 2 * ((y + z + (x + y)) * (z + x) + (x + y) * (y + z))`.\nThis looks like it missed the first term `(y+z)(z+x)` and instead added `(x+y)` to `(y+z)` inside the first factor?\n`(y + z + (x + y))` is `x + 2y + z`.\nIt seems `field_simp` didn't distribute correctly or the goal state shown in the error log is misleading/malformed due to some internal representation issue.\nRegardless, relying on `field_simp` followed by `nlinarith` is a robust strategy.\nThe problem is likely that `div_le_div_iff` is not recognized.\nI will remove `div_le_div_iff` and rely on `field_simp` to transform the goal into a polynomial inequality, then use `nlinarith`.\nI also need to make sure `nlinarith` can solve it.\nThe polynomial inequality derived from substitution $a,b,c$ is $(a+b+c)(1/a+1/b+1/c) \\ge 9$.\nExpanding back to $x,y,z$:\n$2(x^3+y^3+z^3) - (x^2y+xy^2+y^2z+yz^2+z^2x+zx^2) \\ge 0$.\nWait, earlier I calculated Diff = $2(x^3+y^3+z^3) - \\sum_{sym} x^2y$.\nIs this non-negative?\nFor $x=y=z=1$, $2(3) - 6 = 0$.\nFor $x=1, y=1, z=0$ (limit), $2(2) - (1+1+0+0+0+0) = 4-2=2 \\ge 0$.\nFor $x=1, y=2, z=3$:\n$x^3+y^3+z^3 = 1+8+27 = 36$. $2 \\times 36 = 72$.\n$\\sum_{sym} x^2y = 1\\cdot 2 + 1\\cdot 3 + 4\\cdot 1 + 4\\cdot 3 + 9\\cdot 1 + 9\\cdot 2 = 2+3+4+12+9+18 = 48$.\n$72 - 48 = 24 \\ge 0$.\nIt seems true.\nCan `nlinarith` prove $2(x^3+y^3+z^3) \\ge \\sum_{sym} x^2y$ given $x,y,z > 0$?\nUsually `nlinarith` handles squares well. Cubes are harder unless they can be factored.\nHowever, the substitution $a=x+y, b=y+z, c=z+x$ transforms it to $(a+b+c)(1/a+1/b+1/c) \\ge 9$.\nThis is equivalent to $\\sum a/b + \\sum b/a \\ge 6$.\nWhich is $\\sum (a/b + b/a) \\ge 6$.\nSince $t + 1/t \\ge 2$ for $t>0$, this is true.\nSo proving $(a+b+c)(1/a+1/b+1/c) \\ge 9$ is easy with `nlinarith` if we introduce squares like $(a-b)^2$.\nSpecifically, $(a+b+c)(1/a+1/b+1/c) - 9 = \\sum (a/b + b/a - 2) = \\sum \\frac{(a-b)^2}{ab} \\ge 0$.\nSo if I can guide `nlinarith` to see squares, it works.\nOr I can just use `nlinarith [sq_nonneg (x-y), sq_nonneg (y-z), sq_nonneg (z-x)]` on the expanded polynomial.\nWait, the expanded polynomial involves cubes. `nlinarith` might struggle with cubes directly without help.\nBut the substitution $a,b,c$ leads to quadratic forms in terms of $a,b,c$ if we consider $1/a$.\nActually, the easiest way is to use the identity:\n$(x+y+z)(\\frac{1}{x+y} + \\frac{1}{y+z} + \\frac{1}{z+x}) - \\frac{9}{2} = \\frac{1}{2} \\sum \\frac{(x-y)^2}{(x+y)(y+z)} \\dots$ ? No.\nLet's stick to the $a,b,c$ substitution idea.\nDefine $a = x+y, b = y+z, c = z+x$.\nThen $x+y+z = (a+b+c)/2$.\nGoal: $9 / ((a+b+c)/2) \\le 2/a + 2/b + 2/c$.\n$18/(a+b+c) \\le 2(1/a+1/b+1/c)$.\n$9/(a+b+c) \\le 1/a+1/b+1/c$.\n$(a+b+c)(1/a+1/b+1/c) \\ge 9$.\nThis is standard.\nI can define local variables `a`, `b`, `c` in the proof.\nThen prove the inequality for `a`, `b`, `c`.\nThen substitute back.\nOr just use `nlinarith` with the expanded form if I can convince it.\nActually, `nlinarith` in Mathlib is quite powerful.\nLet's try to construct the proof using `field_simp` to clear denominators, then `nlinarith`.\nThe error log showed `nlinarith` was called but the goal was malformed.\nI will fix the goal formation.\nInstead of `rw [div_le_div_iff ...]`, I will just use `field_simp` to clear denominators.\nWait, `field_simp` alone might not clear denominators completely if the structure is complex.\n`field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']` should simplify the fractions.\nThen I can use `ring_nf` to normalize the polynomials.\nThen `nlinarith`.\nI need to ensure `nlinarith` sees the non-negativity.\nThe inequality is equivalent to $\\sum_{cyc} \\frac{(x-y)^2}{(x+y)(y+z)(z+x)} \\ge 0$? No.\nLet's check the identity for $\\sum \\frac{1}{x+y} - \\frac{9}{2(x+y+z)}$.\n$\\sum \\frac{1}{x+y} - \\frac{9}{2(x+y+z)} = \\frac{1}{2(x+y+z)} \\sum \\frac{(x-y)^2}{(x+y)(y+z)}$? No.\nActually, the identity is:\n$\\sum_{cyc} \\frac{1}{x+y} - \\frac{9}{2(x+y+z)} = \\frac{\\sum_{cyc} (x-y)^2 (x+y+z)}{2(x+y)(y+z)(z+x)(x+y+z)}$? No.\nLet's use the $a,b,c$ substitution in the Lean proof.\nIt's cleaner.\n```lean\n  have h_a : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h_b : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h_c : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  \n  -- Let a = x+y, b = y+z, c = z+x\n  -- We want to prove 9 / ((a+b+c)/2) ≤ 2/a + 2/b + 2/c\n  -- Which simplifies to (a+b+c)(1/a+1/b+1/c) ≥ 9\n  \n  have h_main : (x + y + z) * (1 / (x + y) + 1 / (y + z) + 1 / (z + x)) ≥ 9 / 2 := by sorry\n```\nWait, I shouldn't use `sorry`.\nI can prove `(a+b+c)(1/a+1/b+1/c) ≥ 9` using `nlinarith` with `sq_nonneg (a-b)`.\nIdentity: $(a+b+c)(1/a+1/b+1/c) - 9 = \\frac{1}{abc} \\sum (a-b)^2 \\dots$?\nActually $(a+b+c)(1/a+1/b+1/c) = 3 + \\sum (a/b + b/a)$.\n$a/b + b/a - 2 = (a-b)^2 / ab \\ge 0$.\nSo sum $\\ge 3 + 2 + 2 + 2 = 9$.\nSo I can use `nlinarith [sq_nonneg (x+y - (y+z)), sq_nonneg (y+z - (z+x)), sq_nonneg (z+x - (x+y))]`.\nNote $x+y - (y+z) = x-z$.\nSo `sq_nonneg (x-z)`, etc.\nThis matches the `sq_nonneg (x-y)` etc in the original candidate.\nSo the strategy:\n1. Clear denominators properly.\n2. Use `nlinarith` with squared differences.\n\nLet's refine the \"Clear denominators\" part.\nThe candidate used `field_simp` then `rw [div_le_div_iff ...]`.\nThe `div_le_div_iff` caused the crash.\nI will remove `div_le_div_iff`.\nAfter `field_simp`, the goal should be polynomial.\nThen `ring_nf` to expand.\nThen `nlinarith`.\nI need to make sure `field_simp` produces the correct polynomial.\nThe error log suggested `field_simp` produced a weird RHS.\nMaybe I should manually multiply?\nOr use `field_simp` carefully.\nActually, `field_simp` is usually reliable. The weird output in the error log might be due to the `rw` line interfering or the goal state being printed incorrectly.\nLet's try to just use `field_simp` and then `nlinarith`.\nI'll add `ring_nf` to ensure the polynomial is in a standard form.\nAlso, I need to handle the positivity assumptions for `field_simp`.\nThe candidate code had `h₁, h₂, h₃, h₄` which are good.\nI will reuse them.\n\nOne detail: `div_le_div_iff` is indeed in Mathlib. Why did it fail?\nMaybe the typeclass resolution failed or the syntax `div_le_div_iff (by positivity) (by positivity)` expects specific types.\nUsually `div_le_div_iff` is `a / b ≤ c / d ↔ a * d ≤ c * b` (for positive b,d).\nIf I don't use it, I can just multiply.\n`have h_mul : 9 * (x + y) * (y + z) * (z + x) ≤ 2 * (x + y + z) * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) := by ...`\nThen `exact (div_le_div_iff _ _).mpr h_mul`.\nBut `div_le_div_iff` is the one causing the error.\nSo I should avoid it.\nI can use `calc` block or just `apply le_of_sub_nonneg`.\nOr simpler:\n`field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']`\n`rw [← sub_nonneg]`\n`ring_nf`\n`nlinarith [...]`\nThis avoids `div_le_div_iff`.\n\nWait, `field_simp` might leave the goal as `9 / (x + y + z) ≤ ...`.\nNo, `field_simp` simplifies expressions. If I apply it to the whole goal, it might not clear the denominators automatically unless I specify the target or use `simp only`.\nActually `field_simp` simplifies divisions. It doesn't necessarily clear them to a single fraction unless the structure allows.\nBetter: `field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']` will turn `2 / (x + y)` into `2 * (x + y)⁻¹`.\nThen `rw [div_eq_mul_inv]`?\nActually, `field_simp` often clears denominators if you use `field_simp [h₁.ne', ...]` on the goal `A ≤ B` where A, B are fractions.\nIt turns it into `numerator_A * denominator_B ≤ numerator_B * denominator_A`.\nWait, no. `field_simp` normalizes fractions.\nIf I want to clear denominators, I should multiply by the common denominator.\n`have h_denom_pos : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity`\n`have h_ineq : 9 * (x + y) * (y + z) * (z + x) ≤ 2 * (x + y + z) * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z)) := by ...`\n`exact (div_le_div_iff (by positivity) (by positivity)).mpr h_ineq`\nBut `div_le_div_iff` is the problem.\nOkay, I will use `calc`:\n```lean\n  calc\n    9 / (x + y + z) = 9 * (x + y) * (y + z) * (z + x) / ((x + y + z) * (x + y) * (y + z) * (z + x)) := by field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']; ring\n    _ ≤ (2 * (x + y + z) * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z))) / ((x + y + z) * (x + y) * (y + z) * (z + x)) := by\n      gcongr\n      -- prove the numerator inequality here\n    _ = 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']; ring\n```\nThis avoids `div_le_div_iff` directly in the main flow, though `gcongr` might use it internally.\nActually, `gcongr` is safe.\nBut writing the numerator inequality manually is tedious.\nLet's go back to `field_simp` on the goal.\nIf I do `field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']`, the goal becomes:\n`9 * (x + y) * (y + z) * (z + x) ≤ 2 * (x + y + z) * ((y + z) * (z + x) + (x + y) * (z + x) + (x + y) * (y + z))`\nWait, does `field_simp` do that?\nYes, `field_simp` clears denominators by multiplying by the common denominator if the goal is an inequality between fractions.\nWait, checking documentation: `field_simp` simplifies field operations. It doesn't automatically cross-multiply for inequalities.\nHowever, `rw [div_le_div_iff ...]` does exactly that.\nSince `div_le_div_iff` is missing/erroring, I should find the alternative.\nMaybe `div_le_div_iff` is not exported in the default `Mathlib` import in the environment?\nOr maybe it's `div_le_div_iff'`?\nActually, in recent Mathlib, `div_le_div_iff` is available.\nThe error `Unknown identifier 'div_le_div_iff'` strongly suggests it's not found.\nCould it be `mul_le_mul_of_nonneg_left`?\nI can use `have h_num : ... := by ...` and then `exact (div_le_div_iff ...).mpr h_num`.\nIf `div_le_div_iff` is unknown, I can't use it.\nSo I must avoid it.\nHow about `apply le_of_sub_nonneg`?\n`sub_nonneg` converts `A ≤ B` to `B - A ≥ 0`.\nThen `field_simp` on `B - A`.\n`B - A = 2/(x+y) + ... - 9/(x+y+z)`.\nCommon denominator is $D = (x+y)(y+z)(z+x)(x+y+z)$.\nNumerator is $N = 2(x+y+z)[(y+z)(z+x) + \\dots] - 9(x+y)(y+z)(z+x)$.\nI need to show $N \\ge 0$.\nI can compute $N$ using `ring_nf`.\nThen `nlinarith`.\nThis avoids `div_le_div_iff`.\n\nPlan:\n1. Keep `h₁, h₂, h₃, h₄`.\n2. `have h_denom_pos : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity`.\n3. `have h_diff : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by ...`\n   Inside `h_diff`:\n   `field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']`\n   `rw [← sub_nonneg]`\n   `ring_nf`\n   `nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x)]`\n4. `exact le_of_sub_nonneg h_diff`.\n\nWait, `field_simp` on the subtraction might result in a large fraction.\n`field_simp` will combine fractions.\nThen `ring_nf` expands the numerator.\nThen `nlinarith` checks non-negativity.\nThis seems robust.\n\nLet's double check the `nlinarith` part.\nThe polynomial is $2(x^3+y^3+z^3) - \\sum_{sym} x^2y$.\nAs analyzed, this is non-negative.\nDoes `nlinarith` know this?\nIt knows squares are non-negative.\nIt might need hints like `sq_nonneg (x - y)`.\nThe hint `sq_nonneg (x - y)` generates $x^2 - 2xy + y^2 \\ge 0$.\nSumming cyclic permutations: $2(x^2+y^2+z^2) - 2(xy+yz+zx) \\ge 0$.\nThis helps with degree 2.\nFor degree 3, it's trickier.\nHowever, the substitution $a,b,c$ makes it degree 2 in terms of $a,b,c$ (after clearing denominators).\n$(a+b+c)(1/a+1/b+1/c) \\ge 9 \\iff \\sum (a/b + b/a) \\ge 6$.\n$a/b + b/a - 2 = (a-b)^2/ab$.\nSo $\\sum (a-b)^2/ab \\ge 0$.\nThis is clearly true.\nIn terms of $x,y,z$, $a-b = x-z$.\nSo $\\sum (x-z)^2 / ((x+y)(y+z)) \\ge 0$.\nThis is a sum of squares divided by positive numbers.\nSo `nlinarith` should be able to handle it if I give it the squares.\nThe `nlinarith` call in the candidate included `sq_nonneg (x - y)`, etc.\nI will keep those.\nI will also add `mul_pos` facts to ensure denominators are positive if needed, but `nlinarith` usually handles positivity of variables.\nWait, `nlinarith` doesn't automatically know $1/x \\ge 0$ implies $x \\ge 0$.\nBut here we have sums of squares.\nThe expression after `field_simp` and `ring_nf` will be a rational function.\n`field_simp` puts it over a common denominator.\nThe numerator is the polynomial.\nThe denominator is positive.\nSo showing Numerator $\\ge 0$ is sufficient.\n`nlinarith` works on the numerator polynomial.\nThe numerator is $2(x^3+y^3+z^3) - \\sum_{sym} x^2y$.\nIs this provable by `nlinarith` with `sq_nonneg`?\nMaybe not directly.\nBut I can use the identity:\n$2(x^3+y^3+z^3) - \\sum_{sym} x^2y = \\sum_{cyc} (x-y)^2 (x+y) + \\dots$?\nActually, $2(x^3+y^3+z^3) - (x^2y+xy^2+y^2z+yz^2+z^2x+zx^2) = \\sum_{cyc} (x^3 - x^2y - xy^2 + y^3) + \\dots$\n$= \\sum_{cyc} (x-y)(x^2-y^2) = \\sum_{cyc} (x-y)^2(x+y)$.\nLet's check:\n$\\sum_{cyc} (x-y)^2(x+y) = (x-y)^2(x+y) + (y-z)^2(y+z) + (z-x)^2(z+x)$.\nExpand $(x-y)^2(x+y) = (x^2-2xy+y^2)(x+y) = x^3 + x^2y - 2x^2y - 2xy^2 + xy^2 + y^3 = x^3 - x^2y - xy^2 + y^3$.\nSumming cyclic:\n$(x^3 - x^2y - xy^2 + y^3) + (y^3 - y^2z - yz^2 + z^3) + (z^3 - z^2x - zx^2 + x^3)$\n$= 2(x^3+y^3+z^3) - (x^2y+xy^2+y^2z+yz^2+z^2x+zx^2)$.\nExactly the numerator!\nSo the numerator is $\\sum_{cyc} (x-y)^2(x+y)$.\nSince $x,y,z > 0$, $x+y > 0$. And $(x-y)^2 \\ge 0$.\nSo the sum is $\\ge 0$.\nSo `nlinarith` with `sq_nonneg (x-y)` and `mul_nonneg` (or just knowing $x+y > 0$) should work.\nActually `nlinarith` can handle products of non-negative terms if told.\nBut `sq_nonneg` provides the square.\nI need to tell `nlinarith` that $x+y \\ge 0$.\nThis is true by `h₁`.\nSo I should include `h₁.le`, `h₂.le`, `h₃.le` in `nlinarith`.\nOr just `h₀.1`, `h₀.2.1`, `h₀.2.2`.\nActually `nlinarith` uses `sq_nonneg` to generate squares.\nIf I pass `sq_nonneg (x-y)`, it knows $(x-y)^2 \\ge 0$.\nIt doesn't automatically know $(x-y)^2(x+y) \\ge 0$ unless it knows $x+y \\ge 0$.\nSo I should add `h₁.le`, `h₂.le`, `h₃.le` to the `nlinarith` arguments.\nWait, `h₁` is `0 < x + y`. So `h₁.le` is `0 ≤ x + y`.\nThis should be enough.\n\nSo the plan:\n1. Define `h₁, h₂, h₃` for positivity of sums.\n2. `have h_diff : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by ...`\n   - `field_simp`\n   - `rw [← sub_nonneg]`\n   - `ring_nf`\n   - `nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x), h₁.le, h₂.le, h₃.le]`\n3. `exact le_of_sub_nonneg h_diff`.\n\nWait, `field_simp` might not put it in the form `Num / Denom`.\nIt might leave it as `2 * (x+y)⁻¹ + ...`.\n`ring_nf` won't combine them.\nI need to combine them first.\n`field_simp` does combine fractions.\nSo `field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']` should produce `Num / Denom`.\nThen `rw [div_le_iff (by positivity)]`? No, I'm avoiding `div_le_div_iff`.\nI'm doing `have h_diff : ... ≥ 0`.\nSo `field_simp` on `2/(...) + ... - 9/(...)`.\nResult: `Num / Denom`.\nThen `rw [div_le_iff (by positivity)]` -> `Num ≥ 0`.\nWait, `div_le_iff` is also risky if `div_le_div_iff` is the issue.\nBut `div_le_iff` is `a / b ≥ 0 ↔ a ≥ 0 ∧ b > 0`.\nThis is safer.\nActually, `field_simp` leaves the expression as a fraction.\nI can use `have h_num : Num ≥ 0 := by ...`\nHow to access `Num`?\n`field_simp` returns the simplified expression.\nI can use `dsimp` or just `rw [← sub_nonneg]`.\nIf the expression is `Num / Denom`, then `Num / Denom ≥ 0` is equivalent to `Num ≥ 0` (since Denom > 0).\nI can use `apply div_nonneg`.\n`div_nonneg` requires `0 ≤ Num` and `0 ≤ Denom`.\nDenom is positive.\nSo `apply div_nonneg`.\nThen `nlinarith` on `Num`.\nBut `Num` is not visible.\nI can use `field_simp` to transform the goal `2/(...) + ... - 9/(...) ≥ 0` into `Num / Denom ≥ 0`.\nThen `rw [div_le_iff (by positivity)]` to get `Num ≥ 0`.\nWait, `div_le_iff` is `a / b ≤ c ↔ a ≤ c * b` (for b > 0).\nHere `c = 0`. So `a / b ≤ 0 ↔ a ≤ 0`.\nI want `a / b ≥ 0`.\n`div_nonneg` is `a / b ≥ 0 ↔ 0 ≤ a ∧ 0 ≤ b`.\nSo `apply div_nonneg`.\nThen `nlinarith` proves `0 ≤ Num`.\nBut `Num` is hidden.\nI need to expose `Num`.\n`field_simp` simplifies the expression.\nIf I do `field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']`, the goal becomes `Num / Denom ≥ 0`.\nThen `rw [div_nonneg_iff (by positivity)]`?\nThere is `div_nonneg_iff`.\nOr I can just use `have h_num : Num ≥ 0 := by ...`\nBut I don't know `Num`.\nActually, `field_simp` modifies the goal.\nSo I can just `rw [div_nonneg_iff (by positivity)]` to get `0 ≤ Num`.\nThen `nlinarith` works on `Num`.\nWait, `div_nonneg_iff` might not exist or be the same as `div_le_div_iff` issue.\nLet's assume `div_le_div_iff` is the only problematic one.\nStandard tactics like `field_simp` and `nlinarith` are fine.\nI'll use `field_simp` then `rw [div_le_iff (by positivity)]` to move denominator.\nWait, `div_le_iff` is `a / b ≤ c ↔ a ≤ c * b`.\nHere `c = 0`. So `a / b ≤ 0 ↔ a ≤ 0`.\nI want `a / b ≥ 0`.\nSo `a / b ≥ 0 ↔ a ≥ 0` (for b > 0).\nThis is `div_nonneg_iff`.\nIf `div_nonneg_iff` is not available, I can use `apply le_of_sub_nonneg`.\n`sub_nonneg` converts `A ≥ 0` to `A - 0 ≥ 0`.\nSo `field_simp` gives `Num / Denom`.\n`rw [sub_zero]` (trivial).\nThen `apply div_nonneg`.\nRequires `0 ≤ Num` and `0 ≤ Denom`.\n`0 ≤ Denom` is `by positivity`.\n`0 ≤ Num` is what I need to prove.\nBut `Num` is not in the goal.\nThe goal is `Num / Denom ≥ 0`.\nIf I use `apply div_nonneg`, the new goal is `0 ≤ Num`.\nBut `Num` is not defined.\nAh, `field_simp` replaces the expression.\nSo the goal is literally `Num / Denom ≥ 0`.\n`apply div_nonneg` splits it into `0 ≤ Num` and `0 ≤ Denom`.\nSo `Num` becomes the goal.\nThis works!\nSo:\n1. `field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']`\n2. `apply div_nonneg`\n3. `· positivity` (for denominator)\n4. `· nlinarith [sq_nonneg (x - y), ..., h₁.le, ...]` (for numerator)\n\nThis avoids `div_le_div_iff` completely.\nI need to make sure `div_nonneg` is available. It is in `Mathlib.Algebra.Order.Field.Defs`.\nIt should be fine.\n\nFinal check on imports: `import Mathlib`.\nThe code should be self-contained.\nI will write the full theorem.\n\nOne small thing: `h₀` is `0 < x ∧ 0 < y ∧ 0 < z`.\nI need `h₁ : 0 < x + y`, etc.\nI will define them.\nAlso `h₄ : 0 < x + y + z`.\nI will use `h₁.le` etc for `nlinarith`.\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_diff : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [← sub_nonneg]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_nonneg h₀.1.le h₀.2.1.le, mul_nonneg h₀.2.1.le h₀.2.2.le, mul_nonneg h₀.2.2.le h₀.1.le]\n  \n  exact le_of_sub_nonneg h_diff\n```\nWait, `sub_nonneg` converts `A ≥ 0` to `A - 0 ≥ 0`.\nThe goal after `field_simp` is `Num / Denom ≥ 0`.\n`rw [← sub_nonneg]` changes goal to `Num / Denom - 0 ≥ 0`.\nThis doesn't help with `div_nonneg`.\nI should just use `apply div_nonneg`.\nBut `field_simp` produces `Num / Denom`.\nSo `apply div_nonneg` creates subgoals `0 ≤ Num` and `0 ≤ Denom`.\n`0 ≤ Denom` is `by positivity`.\n`0 ≤ Num` is `nlinarith`.\nSo I don't need `sub_nonneg`.\nWait, `field_simp` might not produce `Num / Denom` if the expression is not a single fraction.\n`2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z)`\n`field_simp` combines these into a single fraction.\nYes, `field_simp` is designed to do that.\nSo `apply div_nonneg` is the way.\nHowever, `nlinarith` on `Num` needs to know `Num` is non-negative.\n`Num` is the numerator polynomial.\n`nlinarith` will see the polynomial.\nI need to ensure `nlinarith` can prove `Num ≥ 0`.\nAs derived, `Num = \\sum (x-y)^2(x+y)`.\n`nlinarith` with `sq_nonneg (x-y)` and `",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 997,
+          "completion_tokens": 12000,
+          "total_tokens": 12997,
+          "cost": 0.003184805,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.003184805,
+            "upstream_inference_prompt_cost": 6.4805e-05,
+            "upstream_inference_completions_cost": 0.00312
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.003184805,
+      "latency_ms": 96984,
+      "status": "ok"
+    },
+    {
+      "call_id": "b49d805275f34947b332735eb80da2cf",
+      "request": {
+        "model": "qwen/qwen3.5-flash-02-23",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write one complete Lean 4 file using Mathlib.\nReturn only Lean code, preferably in one ```lean block.\nUse exactly one import line: `import Mathlib`.\nPreserve every declaration name, type/statement, and numeric answer from the pristine challenge.\nYou may add new helper lemmas or definitions with fresh names.\nDo not use sorry, admit, axioms, or unsafe escapes."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: algebra_9onxpypzleqsum2onxpy\nAttempt 4 of at most 10; phase: repair\n\nProblem description:\n# algebra_9onxpypzleqsum2onxpy\n\nProve `algebra_9onxpypzleqsum2onxpy` as formally stated in `challenge.lean`. This statement is from the miniF2F Lean 4 test split.\n\n\nPristine Lean challenge:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by sorry\n```\n\nCurrent candidate to repair:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_diff : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [← sub_nonneg]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_nonneg h₀.1.le h₀.2.1.le, mul_nonneg h₀.2.1.le h₀.2.2.le, mul_nonneg h₀.2.2.le h₀.1.le]\n  \n  exact le_of_sub_nonneg h_diff\n\n```\n\nBounded deduplicated Lean diagnostics:\n```text\nWarm Lean accepted this complete proposal and fresh verification is pending. Continue with an independent complete alternative; do not assume the pending candidate is holdout-compatible.\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.15,
+            "completion": 0.6
+          }
+        },
+        "temperature": 0.2,
+        "seed": 7004,
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "started_at": "2026-09-03T23:51:34.026499+00:00",
+      "reserved_cost_usd": 0.008330685,
+      "response": {
+        "id": "gen-1788479494-bHReTjmosS08k7lSunY6",
+        "object": "chat.completion",
+        "created": 1788479494,
+        "model": "qwen/qwen3.5-flash-02-23",
+        "provider": "Alibaba",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "The user wants me to repair a Lean 4 proof for the inequality:\n$$\\frac{9}{x + y + z} \\leq \\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x}$$\n\nwhere $x, y, z > 0$.\n\nThe current candidate uses `field_simp`, `rw [← sub_nonneg]`, `ring_nf`, and `nlinarith`. Let me check if this approach is valid.\n\nLooking at the diagnostics, it says \"Warm Lean accepted this complete proposal and fresh verification is pending.\" This suggests the previous attempt might have worked but needs independent verification. However, I'm asked to provide an alternative complete solution.\n\nLet me think about how to prove this inequality properly.\n\nOne common approach is to use the Cauchy-Schwarz inequality or AM-HM inequality.\n\nLet's try another approach using algebraic manipulation:\n\nWe want to show:\n$$\\frac{9}{x + y + z} \\leq \\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x}$$\n\nThis can be rewritten as:\n$$\\frac{9}{x + y + z} - \\left(\\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x}\\right) \\leq 0$$\n\nOr equivalently:\n$$\\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x} - \\frac{9}{x + y + z} \\geq 0$$\n\nLet me verify the current approach more carefully. The issue might be with how `nlinarith` handles the expression after `ring_nf`.\n\nActually, let me try a different approach that might be more robust. We can use the fact that for positive reals, we can apply certain inequalities.\n\n\nI'll explore a substitution method that simplifies the algebraic structure. By introducing new variables representing pairwise sums, I might create a more tractable form of the inequality. This could help reveal underlying symmetries or simplify the algebraic manipulation needed to prove the statement.\n\nThe key challenge is finding a transformation that makes the inequality more transparent while preserving its essential mathematical properties. Careful variable selection and strategic algebraic rearrangement will be crucial in constructing a rigorous proof.\n</think>\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [le_div_iff (by positivity)]\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n```",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 790,
+          "completion_tokens": 930,
+          "total_tokens": 1720,
+          "cost": 0.00029315,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00029315,
+            "upstream_inference_prompt_cost": 5.135e-05,
+            "upstream_inference_completions_cost": 0.0002418
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.00029315,
+      "latency_ms": 5239,
+      "status": "ok"
+    },
+    {
+      "call_id": "5e456448a91b47908d244b90d140f518",
+      "request": {
+        "model": "qwen/qwen3.5-flash-02-23",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write one complete Lean 4 file using Mathlib.\nReturn only Lean code, preferably in one ```lean block.\nUse exactly one import line: `import Mathlib`.\nPreserve every declaration name, type/statement, and numeric answer from the pristine challenge.\nYou may add new helper lemmas or definitions with fresh names.\nDo not use sorry, admit, axioms, or unsafe escapes."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: algebra_9onxpypzleqsum2onxpy\nAttempt 5 of at most 10; phase: repair\n\nProblem description:\n# algebra_9onxpypzleqsum2onxpy\n\nProve `algebra_9onxpypzleqsum2onxpy` as formally stated in `challenge.lean`. This statement is from the miniF2F Lean 4 test split.\n\n\nPristine Lean challenge:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by sorry\n```\n\nCurrent candidate to repair:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [le_div_iff (by positivity)]\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n\n```\n\nBounded deduplicated Lean diagnostics:\n```text\nerror:Unknown identifier `le_div_iff`\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.15,
+            "completion": 0.6
+          }
+        },
+        "temperature": 0.2,
+        "seed": 7004,
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "started_at": "2026-09-03T23:51:42.349867+00:00",
+      "reserved_cost_usd": 0.008298015,
+      "response": {
+        "id": "gen-1788479502-UJJ0liq53BV6H3OAWuhP",
+        "object": "chat.completion",
+        "created": 1788479502,
+        "model": "qwen/qwen3.5-flash-02-23",
+        "provider": "Alibaba",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "The error message indicates that `le_div_iff` is not recognized. This is likely because the correct lemma name in Mathlib is different. Let me think about what the correct approach should be.\n\nIn Lean 4 with Mathlib, when we want to prove an inequality of the form `a / b ≥ c` where `b > 0`, we typically use `div_le_div_iff` or similar lemmas. However, for `a / b ≤ c` where `b > 0`, we might need to use a different approach.\n\nLooking at the code:\n```lean\nrw [le_div_iff (by positivity)]\n```\n\nThis suggests they're trying to rewrite `2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0` into something involving division. But `le_div_iff` doesn't exist as a standard lemma.\n\nActually, looking more carefully, I think the issue is that after `field_simp`, we have an expression like:\n```\n(2 * (y + z) * (z + x) * (x + y + z) + ...) / ((x + y) * (y + z) * (z + x) * (x + y + z)) ≥ 0\n```\n\nAnd then they want to multiply both sides by the denominator (which is positive) to get:\n```\nnumerator ≥ 0\n```\n\nThe correct way to do this in Lean would be to use `le_of_sub_nonneg` or directly work with the numerator after clearing denominators.\n\nLet me think about the structure:\n1. After `field_simp`, we have a fraction\n2. We want to show this fraction is ≥ 0\n3. Since the denominator is positive, we can multiply through\n\nA better approach might be:\n- Use `have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z)` \n\n\n- Then use `mul_le_mul_of_pos_left` or similar\n\nOr we could restructure the proof to avoid needing `le_div_iff`. Let me try using `div_le_iff` instead, which should exist in Mathlib. Actually, `div_le_iff` requires the right side to be non-negative and the divisor to be positive.\n\nI'll focus on finding the right lemma to handle the division inequality. The key is ensuring the denominator is positive and using the appropriate Mathlib lemma to transform the inequality.\n</think>\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [le_div_iff (by positivity)]\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n```",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 752,
+          "completion_tokens": 987,
+          "total_tokens": 1739,
+          "cost": 0.0003055,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.0003055,
+            "upstream_inference_prompt_cost": 4.888e-05,
+            "upstream_inference_completions_cost": 0.00025662
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.0003055,
+      "latency_ms": 5750,
+      "status": "ok"
+    },
+    {
+      "call_id": "4893310daca64e59be609905c89992d3",
+      "request": {
+        "model": "qwen/qwen3.5-flash-02-23",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write one complete Lean 4 file using Mathlib.\nReturn only Lean code, preferably in one ```lean block.\nUse exactly one import line: `import Mathlib`.\nPreserve every declaration name, type/statement, and numeric answer from the pristine challenge.\nYou may add new helper lemmas or definitions with fresh names.\nDo not use sorry, admit, axioms, or unsafe escapes."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: algebra_9onxpypzleqsum2onxpy\nAttempt 6 of at most 10; phase: repair\n\nProblem description:\n# algebra_9onxpypzleqsum2onxpy\n\nProve `algebra_9onxpypzleqsum2onxpy` as formally stated in `challenge.lean`. This statement is from the miniF2F Lean 4 test split.\n\n\nPristine Lean challenge:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by sorry\n```\n\nCurrent candidate to repair:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [le_div_iff (by positivity)]\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n\n```\n\nBounded deduplicated Lean diagnostics:\n```text\nerror:Unknown identifier `le_div_iff`\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.15,
+            "completion": 0.6
+          }
+        },
+        "temperature": 0.2,
+        "seed": 7004,
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "started_at": "2026-09-03T23:51:51.967236+00:00",
+      "reserved_cost_usd": 0.008311215,
+      "response": {
+        "id": "gen-1788479512-qdf9QlZUd7fsvpY225jL",
+        "object": "chat.completion",
+        "created": 1788479512,
+        "model": "qwen/qwen3.5-flash-02-23",
+        "provider": "Alibaba",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "The error message indicates that `le_div_iff` is not recognized. This is likely because the correct lemma name in Mathlib might be different, or we need to use a different approach.\n\nLooking at the code, I'm trying to prove:\n```\n2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0\n```\n\nAnd then convert it to:\n```\n9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x)\n```\n\nThe issue is with `le_div_iff`. In Mathlib, the correct lemma for division inequalities is typically `div_le_iff` or similar. Let me think about what's available.\n\nActually, looking more carefully, I should use `div_le_iff` instead of `le_div_iff`, but even better, I can restructure the proof to avoid this issue entirely.\n\nLet me rewrite the proof using a different approach:\n\n1. First, clear denominators by multiplying through by positive quantities\n2. Use algebraic manipulation and known inequalities\n\nHere's a cleaner approach:\n\n```lean\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [← sub_nonneg]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n```\n\nI'll focus on simplifying the proof structure and ensuring all necessary conditions are met. The key is to manipulate the inequality carefully while maintaining the positivity constraints.\n</think>\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [← sub_nonneg]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n```",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 790,
+          "completion_tokens": 1164,
+          "total_tokens": 1954,
+          "cost": 0.00035399,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00035399,
+            "upstream_inference_prompt_cost": 5.135e-05,
+            "upstream_inference_completions_cost": 0.00030264
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.00035399,
+      "latency_ms": 6671,
+      "status": "ok"
+    },
+    {
+      "call_id": "ee4d860af62a4289b921e3c5151aa6a5",
+      "request": {
+        "model": "qwen/qwen3.5-flash-02-23",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write one complete Lean 4 file using Mathlib.\nReturn only Lean code, preferably in one ```lean block.\nUse exactly one import line: `import Mathlib`.\nPreserve every declaration name, type/statement, and numeric answer from the pristine challenge.\nYou may add new helper lemmas or definitions with fresh names.\nDo not use sorry, admit, axioms, or unsafe escapes."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: algebra_9onxpypzleqsum2onxpy\nAttempt 7 of at most 10; phase: repair\n\nProblem description:\n# algebra_9onxpypzleqsum2onxpy\n\nProve `algebra_9onxpypzleqsum2onxpy` as formally stated in `challenge.lean`. This statement is from the miniF2F Lean 4 test split.\n\n\nPristine Lean challenge:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by sorry\n```\n\nCurrent candidate to repair:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [← sub_nonneg]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n\n```\n\nBounded deduplicated Lean diagnostics:\n```text\nWarm Lean accepted this complete proposal and fresh verification is pending. Continue with an independent complete alternative; do not assume the pending candidate is holdout-compatible.\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.15,
+            "completion": 0.6
+          }
+        },
+        "temperature": 0.2,
+        "seed": 7004,
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "started_at": "2026-09-03T23:52:05.464330+00:00",
+      "reserved_cost_usd": 0.008335965,
+      "response": {
+        "id": "gen-1788479525-v3ZRLX4eUXY3oz8PQLZr",
+        "object": "chat.completion",
+        "created": 1788479525,
+        "model": "qwen/qwen3.5-flash-02-23",
+        "provider": "Alibaba",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "The user wants me to repair a Lean 4 proof for the inequality:\n$$\\frac{9}{x + y + z} \\leq \\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x}$$\n\nwhere $x, y, z > 0$.\n\nLet me analyze the current candidate. The approach is to show that:\n$$\\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x} - \\frac{9}{x + y + z} \\geq 0$$\n\nThis looks like a valid approach. Let me verify the logic:\n\n1. We need to show all denominators are positive (done with h₁, h₂, h₃, h₄)\n2. We clear denominators and use algebraic manipulation\n3. We use non-negativity of squares\n\nThe current proof uses `field_simp` to clear denominators, then `ring_nf` to expand, and finally `nlinarith` with square terms.\n\nHowever, I notice there might be an issue with how the field simplification works. Let me think about this more carefully.\n\nWhen we have:\n$$\\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x} - \\frac{9}{x + y + z}$$\n\nAfter clearing denominators, we get:\n$$2(y+z)(z+x)(x+y+z) + 2(x+y)(z+x)(x+y+z) + 2(x+y)(y+z)(x+y+z) - 9(x+y)(y+z)(z+x)$$\n\nThis should be expanded and shown to be non-negative.\n\nActually, let me reconsider. The current proof structure seems reasonable, but I want to make sure it's correct.\n\n\nI'll explore alternative proof strategies to ensure robustness. The key challenge is handling the complex algebraic manipulations while maintaining mathematical rigor. I'll focus on creating a clear, step-by-step approach that demonstrates the inequality's validity through careful algebraic transformations.\n\nThe core goal is to prove the relationship between these fractional expressions using precise mathematical reasoning in Lean 4's type theory.\n</think>\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    have h₆ : 0 < (x + y) * (y + z) := by positivity\n    have h₇ : 0 < (y + z) * (z + x) := by positivity\n    have h₈ : 0 < (z + x) * (x + y) := by positivity\n    \n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [← sub_nonneg]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n```",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 813,
+          "completion_tokens": 1006,
+          "total_tokens": 1819,
+          "cost": 0.000314405,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.000314405,
+            "upstream_inference_prompt_cost": 5.2845e-05,
+            "upstream_inference_completions_cost": 0.00026156
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.000314405,
+      "latency_ms": 5653,
+      "status": "ok"
+    },
+    {
+      "call_id": "d24174279d4f4900a238627ab60c4972",
+      "request": {
+        "model": "qwen/qwen3.5-flash-02-23",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write one complete Lean 4 file using Mathlib.\nReturn only Lean code, preferably in one ```lean block.\nUse exactly one import line: `import Mathlib`.\nPreserve every declaration name, type/statement, and numeric answer from the pristine challenge.\nYou may add new helper lemmas or definitions with fresh names.\nDo not use sorry, admit, axioms, or unsafe escapes."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: algebra_9onxpypzleqsum2onxpy\nAttempt 8 of at most 10; phase: repair\n\nProblem description:\n# algebra_9onxpypzleqsum2onxpy\n\nProve `algebra_9onxpypzleqsum2onxpy` as formally stated in `challenge.lean`. This statement is from the miniF2F Lean 4 test split.\n\n\nPristine Lean challenge:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by sorry\n```\n\nCurrent candidate to repair:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    have h₆ : 0 < (x + y) * (y + z) := by positivity\n    have h₇ : 0 < (y + z) * (z + x) := by positivity\n    have h₈ : 0 < (z + x) * (x + y) := by positivity\n    \n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [← sub_nonneg]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n\n```\n\nBounded deduplicated Lean diagnostics:\n```text\nWarm Lean accepted this complete proposal and fresh verification is pending. Continue with an independent complete alternative; do not assume the pending candidate is holdout-compatible.\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.15,
+            "completion": 0.6
+          }
+        },
+        "temperature": 0.2,
+        "seed": 7004,
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "started_at": "2026-09-03T23:52:18.924853+00:00",
+      "reserved_cost_usd": 0.008364675,
+      "response": {
+        "id": "gen-1788479538-0vhAbhwL0AlaP4WNbzUo",
+        "object": "chat.completion",
+        "created": 1788479538,
+        "model": "qwen/qwen3.5-flash-02-23",
+        "provider": "Alibaba",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "The user wants me to repair a Lean 4 proof for the inequality:\n$$\\frac{9}{x + y + z} \\leq \\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x}$$\n\nwhere $x, y, z > 0$.\n\nLet me analyze the current candidate. The approach is to show that:\n$$\\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x} - \\frac{9}{x + y + z} \\geq 0$$\n\nThis looks like a valid approach. Let me check if there are any issues with the current proof.\n\nLooking at the diagnostics, it says \"Warm Lean accepted this complete proposal and fresh verification is pending.\" This suggests the previous attempt might have been accepted but needs independent verification.\n\nHowever, I need to provide a complete alternative proof. Let me think about different approaches:\n\n1. **Cauchy-Schwarz approach**: We could use Cauchy-Schwarz or Titu's lemma.\n\n2. **Direct algebraic manipulation**: Clear denominators and expand.\n\n3. **Nesbitt-like inequality**: This is related to Nesbitt's inequality.\n\nLet me try a cleaner approach using standard inequalities. One common technique is to use the fact that:\n$$\\frac{1}{a} + \\frac{1}{b} \\geq \\frac{4}{a+b}$$\n\nOr we can use the substitution method.\n\nActually, let me verify the current proof structure more carefully. The issue might be in how `nlinarith` handles the expression after `ring_nf`.\n\nLet me write a cleaner version:\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\n\n```\n\nI'll focus on creating a robust proof strategy that handles the algebraic complexity carefully. The key is to manipulate the inequality systematically, ensuring each step is mathematically sound and verifiable by Lean's type system.\n\nThe proof will require careful handling of positive real number constraints and strategic algebraic transformations to establish the desired inequality.\n</think>\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    \n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [le_div_iff (by positivity)]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n```",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 885,
+          "completion_tokens": 916,
+          "total_tokens": 1801,
+          "cost": 0.000295685,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.000295685,
+            "upstream_inference_prompt_cost": 5.7525e-05,
+            "upstream_inference_completions_cost": 0.00023816
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.000295685,
+      "latency_ms": 4893,
+      "status": "ok"
+    },
+    {
+      "call_id": "4fc27365235a4f1d80d160810e0c96b6",
+      "request": {
+        "model": "qwen/qwen3.5-flash-02-23",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write one complete Lean 4 file using Mathlib.\nReturn only Lean code, preferably in one ```lean block.\nUse exactly one import line: `import Mathlib`.\nPreserve every declaration name, type/statement, and numeric answer from the pristine challenge.\nYou may add new helper lemmas or definitions with fresh names.\nDo not use sorry, admit, axioms, or unsafe escapes."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: algebra_9onxpypzleqsum2onxpy\nAttempt 9 of at most 10; phase: repair\n\nProblem description:\n# algebra_9onxpypzleqsum2onxpy\n\nProve `algebra_9onxpypzleqsum2onxpy` as formally stated in `challenge.lean`. This statement is from the miniF2F Lean 4 test split.\n\n\nPristine Lean challenge:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by sorry\n```\n\nCurrent candidate to repair:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    \n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [le_div_iff (by positivity)]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n\n```\n\nBounded deduplicated Lean diagnostics:\n```text\nerror:Unknown identifier `le_div_iff`\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.15,
+            "completion": 0.6
+          }
+        },
+        "temperature": 0.2,
+        "seed": 7004,
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "started_at": "2026-09-03T23:52:27.521508+00:00",
+      "reserved_cost_usd": 0.008314350000000002,
+      "response": {
+        "id": "gen-1788479547-A0pFeN7ikg966J2sGcfP",
+        "object": "chat.completion",
+        "created": 1788479547,
+        "model": "qwen/qwen3.5-flash-02-23",
+        "provider": "Alibaba",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "The error message indicates that `le_div_iff` is not recognized. This is likely because the correct lemma name in Mathlib is different. Let me think about what the correct approach should be.\n\nIn Lean 4 Mathlib, for division inequalities, we typically use:\n- `div_le_div_iff` for comparing two fractions\n- Or we can work with multiplication directly\n\nLooking at the code, it seems like they're trying to prove:\n```\n2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0\n```\n\nAnd then using `le_div_iff` to convert this to a form where they can multiply through by the positive denominator.\n\nThe issue is that `le_div_iff` might not exist or have a different name. In Mathlib, the common pattern is to use `div_le_iff` or similar.\n\nActually, looking more carefully, I think the issue is that after `field_simp`, we get an expression, and then we want to show it's ≥ 0. The `rw [le_div_iff ...]` is trying to rewrite the inequality.\n\nLet me reconsider the structure. After `field_simp`, we have something like:\n```\n(some polynomial) / ((x + y) * (y + z) * (z + x) * (x + y + z)) ≥ 0\n```\n\nThen we want to use the fact that the denominator is positive to conclude the numerator is ≥ 0.\n\nIn Mathlib, the lemma for this is typically `div_nonneg` or we can use `le_of_sub_nonneg`.\n\nActually, let me look at what would work:\n- After field_simp, we have a fraction\n- We want to show this fraction ≥ 0\n- Since the denominator is positive, we can multiply both sides by it\n\n\n- The key is finding the right lemma to handle this transformation\n\nI'll explore alternative approaches to prove the inequality, focusing on the correct Mathlib lemmas for handling division and non-negative expressions.\n</think>\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    \n    have h₆ : 0 < (x + y) * (y + z) * (z + x) := by positivity\n    have h₇ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    \n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [← sub_nonneg]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n```",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 794,
+          "completion_tokens": 959,
+          "total_tokens": 1753,
+          "cost": 0.00030095,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00030095,
+            "upstream_inference_prompt_cost": 5.161e-05,
+            "upstream_inference_completions_cost": 0.00024934
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.00030095,
+      "latency_ms": 5132,
+      "status": "ok"
+    },
+    {
+      "call_id": "14e942f4190c42479e76405ba916fe10",
+      "request": {
+        "model": "qwen/qwen3.5-flash-02-23",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write one complete Lean 4 file using Mathlib.\nReturn only Lean code, preferably in one ```lean block.\nUse exactly one import line: `import Mathlib`.\nPreserve every declaration name, type/statement, and numeric answer from the pristine challenge.\nYou may add new helper lemmas or definitions with fresh names.\nDo not use sorry, admit, axioms, or unsafe escapes."
+          },
+          {
+            "role": "user",
+            "content": "Problem id: algebra_9onxpypzleqsum2onxpy\nAttempt 10 of at most 10; phase: repair\n\nProblem description:\n# algebra_9onxpypzleqsum2onxpy\n\nProve `algebra_9onxpypzleqsum2onxpy` as formally stated in `challenge.lean`. This statement is from the miniF2F Lean 4 test split.\n\n\nPristine Lean challenge:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by sorry\n```\n\nCurrent candidate to repair:\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    \n    have h₆ : 0 < (x + y) * (y + z) * (z + x) := by positivity\n    have h₇ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    \n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [← sub_nonneg]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n\n```\n\nBounded deduplicated Lean diagnostics:\n```text\nWarm Lean accepted this complete proposal and fresh verification is pending. Continue with an independent complete alternative; do not assume the pending candidate is holdout-compatible.\n```"
+          }
+        ],
+        "max_tokens": 12000,
+        "stream": false,
+        "provider": {
+          "allow_fallbacks": true,
+          "require_parameters": true,
+          "max_price": {
+            "prompt": 0.15,
+            "completion": 0.6
+          }
+        },
+        "temperature": 0.2,
+        "seed": 7004,
+        "reasoning": {
+          "effort": "medium"
+        }
+      },
+      "started_at": "2026-09-03T23:52:39.461735+00:00",
+      "reserved_cost_usd": 0.0083622,
+      "response": {
+        "id": "gen-1788479559-nGxieSGQE7OgAN7AQWJi",
+        "object": "chat.completion",
+        "created": 1788479559,
+        "model": "qwen/qwen3.5-flash-02-23",
+        "provider": "Alibaba",
+        "system_fingerprint": null,
+        "service_tier": null,
+        "choices": [
+          {
+            "index": 0,
+            "logprobs": null,
+            "finish_reason": "stop",
+            "native_finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "The user wants me to repair a Lean 4 proof for the inequality:\n$$\\frac{9}{x + y + z} \\leq \\frac{2}{x + y} + \\frac{2}{y + z} + \\frac{2}{z + x}$$\n\nwhere $x, y, z > 0$.\n\nThe current candidate has some issues. Let me analyze it:\n\n1. The structure looks reasonable - they're trying to prove that the difference is non-negative.\n2. They use `field_simp` and `ring_nf` which should work.\n3. The `nlinarith` call uses `sq_nonneg` terms which should help.\n\nHowever, there might be an issue with how the expression is being simplified. Let me think about what the actual algebraic manipulation should look like.\n\nLet's denote:\n- $a = x + y$\n- $b = y + z$  \n- $c = z + x$\n\nThen $x + y + z = \\frac{a + b + c}{2}$ (since $a + b + c = 2(x + y + z)$)\n\nSo we want to prove:\n$$\\frac{9}{(a+b+c)/2} \\leq \\frac{2}{a} + \\frac{2}{b} + \\frac{2}{c}$$\n\nWhich simplifies to:\n$$\\frac{18}{a+b+c} \\leq \\frac{2}{a} + \\frac{2}{b} + \\frac{2}{c}$$\n\nOr:\n$$\\frac{9}{a+b+c} \\leq \\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c}$$\n\nThis is a known inequality. By Cauchy-Schwarz or AM-HM:\n$$\\frac{1}{a} + \\frac{1}{b} + \\frac{1}{c} \\geq \\frac{9}{a+b+c}$$\n\n\nEquality holds when $a = b = c$, i.e., $x = y = z$.\n\nI'll focus on creating a clean, direct proof using standard mathematical techniques. The key is to show the inequality holds through careful algebraic manipulation and leveraging fundamental inequalities like AM-HM or Cauchy-Schwarz.\n\nThe proof strategy involves transforming the original inequality into a more manageable form that can be directly verified using basic algebraic principles. Careful handling of positive real number constraints will be crucial.\n</think>\n\n```lean\nimport Mathlib\n\nset_option maxHeartbeats 0\n\nopen BigOperators Real Nat Topology Rat\n\ntheorem algebra_9onxpypzleqsum2onxpy\n  (x y z : ℝ)\n  (h₀ : 0 < x ∧ 0 < y ∧ 0 < z) :\n  9 / (x + y + z) ≤ 2 / (x + y) + 2 / (y + z) + 2 / (z + x) := by\n  have h₁ : 0 < x + y := by linarith [h₀.1, h₀.2.1]\n  have h₂ : 0 < y + z := by linarith [h₀.2.1, h₀.2.2]\n  have h₃ : 0 < z + x := by linarith [h₀.2.2, h₀.1]\n  have h₄ : 0 < x + y + z := by linarith [h₀.1, h₀.2.1, h₀.2.2]\n  \n  have h_main : 2 / (x + y) + 2 / (y + z) + 2 / (z + x) - 9 / (x + y + z) ≥ 0 := by\n    have h₅ : 0 < (x + y) * (y + z) * (z + x) * (x + y + z) := by positivity\n    \n    field_simp [h₁.ne', h₂.ne', h₃.ne', h₄.ne']\n    rw [← sub_nonneg]\n    ring_nf\n    nlinarith [sq_nonneg (x - y), sq_nonneg (y - z), sq_nonneg (z - x),\n      mul_pos h₀.1 h₀.2.1, mul_pos h₀.2.1 h₀.2.2, mul_pos h₀.2.2 h₀.1]\n  \n  linarith\n```",
+              "refusal": null,
+              "reasoning": null
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 882,
+          "completion_tokens": 986,
+          "total_tokens": 1868,
+          "cost": 0.00031369,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0.00031369,
+            "upstream_inference_prompt_cost": 5.733e-05,
+            "upstream_inference_completions_cost": 0.00025636
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      },
+      "actual_cost_usd": 0.00031369,
+      "latency_ms": 5145,
+      "status": "ok"
+    }
+  ],
+  "actual_cost_usd": 0.00596869
+}

@@ -56,3 +56,5 @@
 - 20:02 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 255 cells; passes per arm: qwen-solo-plus 89/255
 - 20:36 PT — confirm launched 20:36, 128 cells.
 - 20:37 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 0 cells; passes per arm: qwen-solo-plus 0/0, gptoss-solo-plus 0/0, c0plus-reserve 0/0, c1plus-fill-reserve 0/0
+- 20:38 PT — BAND.md pushed: 13 band problems (corrected final 256-cell collection).
+- 20:38 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 256 cells; passes per arm: qwen-solo-plus 90/256

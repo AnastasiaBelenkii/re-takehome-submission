@@ -32,6 +32,9 @@ TARGETS = {
 KEEP = ("result.json", "events.jsonl", "transcript.json", "solution.lean", "preliminary-status.json", "provenance.json", "queue-state.json")
 PT = ZoneInfo("America/Los_Angeles")
 ARMS = ("qwen-solo-plus", "gptoss-solo-plus", "c0plus-reserve", "c1plus-fill-reserve", "c0-qq")
+SOLO_LAUNCHED = "solo extension launched"
+SOLO_CURRENT_SKIP = "solo extension skipped: not all 128 primary cells"
+QQ_CURRENT_SKIP = "qq arm skipped at 23:00 PT:"
 
 
 def now_pt() -> datetime:
@@ -201,7 +204,7 @@ def main() -> int:
         passed, totals = counts(results)
         log_text = LOG.read_text() if LOG.exists() else ""
         changed = False
-        if queued == 0 and "solo extension launched" not in log_text and "solo extension skipped:" not in log_text:
+        if queued == 0 and SOLO_LAUNCHED not in log_text and SOLO_CURRENT_SKIP not in log_text:
             if now_pt().time() < clock_time(23, 0):
                 launch = subprocess.run(
                     ("sh", str(ROOT / "scripts/launch_stage6_solo_extension.sh")),
@@ -239,13 +242,13 @@ def main() -> int:
                 append_log(f"{marker} — {waves}; passes {arm_text}.")
                 log_text += marker
                 changed = True
-        if now_pt().time() >= clock_time(23, 0) and "solo extension launched" not in log_text and "solo extension skipped:" not in log_text:
+        if now_pt().time() >= clock_time(23, 0) and SOLO_LAUNCHED not in log_text and SOLO_CURRENT_SKIP not in log_text:
             append_log("solo extension skipped: not all 128 primary cells had dispatched by the 23:00 PT cutoff.")
-            log_text += "solo extension skipped:"
+            log_text += SOLO_CURRENT_SKIP
             changed = True
-        if "solo extension skipped:" in log_text and "qq arm launched" not in log_text and "qq arm skipped:" not in log_text:
-            append_log("qq arm skipped: the required solo extension did not dispatch before its cutoff.")
-            log_text += "qq arm skipped:"
+        if SOLO_CURRENT_SKIP in log_text and "qq arm launched" not in log_text and QQ_CURRENT_SKIP not in log_text:
+            append_log("qq arm skipped at 23:00 PT: the required solo extension did not dispatch before its cutoff.")
+            log_text += QQ_CURRENT_SKIP
             changed = True
         if state.get("phase") == "complete" and "confirm complete," not in log_text:
             append_log(f"confirm complete, {terminal} cells terminal; replay gate ready.")

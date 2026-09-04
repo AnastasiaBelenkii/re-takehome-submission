@@ -76,3 +76,5 @@
 - 21:43 PT — qq arm skipped: the required solo extension did not dispatch before its cutoff.
 - 21:43 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 39 cells; passes per arm: qwen-solo-plus 6/10, gptoss-solo-plus 4/10, c0plus-reserve 8/10, c1plus-fill-reserve 7/9, c0-qq 0/0
 - 22:13 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 58 cells; passes per arm: qwen-solo-plus 10/15, gptoss-solo-plus 7/14, c0plus-reserve 12/15, c1plus-fill-reserve 12/14, c0-qq 0/0
+- 22:15 PT — CORRECTION: the 21:43 PT qq-arm skip line is void; it matched the superseded 17:45 solo-skip entry. Current confirm/solo/QQ gates were unchanged and no QQ cell launched.
+- 22:15 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 58 cells; passes per arm: qwen-solo-plus 10/15, gptoss-solo-plus 7/14, c0plus-reserve 12/15, c1plus-fill-reserve 12/14, c0-qq 0/0

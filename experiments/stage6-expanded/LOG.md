@@ -48,3 +48,5 @@
 - 17:45 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 151 cells; passes per arm: qwen-solo-plus 52/151
 - 18:16 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 173 cells; passes per arm: qwen-solo-plus 60/173
 - 18:46 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 196 cells; passes per arm: qwen-solo-plus 69/196
+- 19:00 PT — 19:00 PT status — calibration: terminal 128 / running 0 / queued 0, passes qwen-solo-plus 68/128; screen: terminal 206 / running 9 / queued 41, passes qwen-solo-plus 71/206; confirm: not launched.
+- 19:00 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 206 cells; passes per arm: qwen-solo-plus 71/206

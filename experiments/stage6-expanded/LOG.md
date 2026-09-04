@@ -79,3 +79,5 @@
 - 22:15 PT — CORRECTION: the 21:43 PT qq-arm skip line is void; it matched the superseded 17:45 solo-skip entry. Current confirm/solo/QQ gates were unchanged and no QQ cell launched.
 - 22:15 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 58 cells; passes per arm: qwen-solo-plus 10/15, gptoss-solo-plus 7/14, c0plus-reserve 12/15, c1plus-fill-reserve 12/14, c0-qq 0/0
 - 22:15 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 58 cells; passes per arm: qwen-solo-plus 10/15, gptoss-solo-plus 7/14, c0plus-reserve 12/15, c1plus-fill-reserve 12/14, c0-qq 0/0
+- 22:30 PT — 22:30 PT confirm status — confirm 67/9/52 terminal/running/queued; passes qwen-solo-plus 10/17, gptoss-solo-plus 8/17, c0plus-reserve 14/17, c1plus-fill-reserve 12/16, c0-qq 0/0.
+- 22:30 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 67 cells; passes per arm: qwen-solo-plus 10/17, gptoss-solo-plus 8/17, c0plus-reserve 14/17, c1plus-fill-reserve 12/16, c0-qq 0/0

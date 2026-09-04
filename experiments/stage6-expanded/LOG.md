@@ -90,3 +90,8 @@
 - 23:44 PT — CORRECTION: qq appended after the remaining primary descriptors at 23:43 PT on SHA b0194b82e472ee1250d89afce2090a3d04888cea; the first plan rendering dropped literal backticks but was repaired before analysis.
 - 23:44 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 109 cells; passes per arm: qwen-solo-plus 16/27, gptoss-solo-plus 11/27, c0plus-reserve 21/28, c1plus-fill-reserve 18/27, c0-qq 0/0
 - 23:45 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 113 cells; passes per arm: qwen-solo-plus 17/29, gptoss-solo-plus 12/28, c0plus-reserve 21/28, c1plus-fill-reserve 19/28, c0-qq 0/0
+- 00:15 PT — confirm replay prelaunch failed: Traceback (most recent call last):
+  File "/opt/stage6-pusher/repo/scripts/build_stage6_confirm_replay_manifest.py", line 11, in <module>
+    from datetime import UTC, datetime
+ImportError: cannot import name 'UTC' from 'datetime' (/usr/lib/python3.10/datetime.py)
+- 00:15 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 129 cells; passes per arm: qwen-solo-plus 18/32, gptoss-solo-plus 14/31, c0plus-reserve 23/32, c1plus-fill-reserve 22/32, c0-qq 2/2

@@ -248,3 +248,6 @@ ImportError: cannot import name 'UTC' from 'datetime' (/usr/lib/python3.10/datet
 - 00:40 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 144 cells; passes per arm: qwen-solo-plus 18/32, gptoss-solo-plus 14/32, c0plus-reserve 23/32, c1plus-fill-reserve 22/32, c0-qq 14/16
 - 00:41 PT — confirm replay prelaunch failed: Warning: Permanently added '168.144.69.52' (ED25519) to the list of known hosts.
 - 00:41 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 144 cells; passes per arm: qwen-solo-plus 18/32, gptoss-solo-plus 14/32, c0plus-reserve 23/32, c1plus-fill-reserve 22/32, c0-qq 14/16
+- 00:42 PT — confirm replay launched on worker 9: 26 source requests, 416 reissues, $3 cap.
+- 01:03 PT — confirm complete, 160 cells terminal; replay gate ready.
+- 01:03 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 159 cells; passes per arm: qwen-solo-plus 18/32, gptoss-solo-plus 14/32, c0plus-reserve 23/32, c1plus-fill-reserve 22/32, c0-qq 28/31

@@ -1,8 +1,13 @@
 # C0-QQ gate
 
-Status: **PENDING SMOKE**  
-Base: `d43af0199db14b36e1761efc641aa00c2dbc3ffe`  
-Implementation commit: `04cd01e076dbef613fa321647c405430f787b506`  
+Status: **PASSED**
+
+Base: `d43af0199db14b36e1761efc641aa00c2dbc3ffe`
+
+Implementation commit: `04cd01e076dbef613fa321647c405430f787b506`
+
+Smoke source branch SHA: `8680cc70d87524e8ff4a92ee610a982a71dfaf89`
+
 Pre-run record frozen: 2026-09-04 03:43:49 UTC
 
 ## Prediction (written before the run)
@@ -46,7 +51,24 @@ The source observations are the paired Stage 5 archive cells for
 
 ## Online smoke
 
-Not launched at the time this pre-run gate was frozen. The immutable plan is
-`qq-smoke-plan.json`: two `p07_least_divisible` cells, seeds 9201–9202, worker
-9, at most eight calls per track and $0.25 per cell. This section must say
-**PASSED** before Part B is eligible.
+**PASSED.** The immutable `qq-smoke-plan.json` ran sequentially on worker 9
+against the source SHA above: two `p07_least_divisible` cells, seeds 9201–9202,
+at most eight calls per track and $0.25 per cell.
+
+| Seed | Result | `qwen#1` | `qwen#2` | Provider sub-seeds |
+|---:|:---:|---:|---:|:---|
+| 9201 | pass | 8 calls | 8 calls | 1969822975, 1959749056 |
+| 9202 | fail | 8 calls | 8 calls | 1304153483, 860350474 |
+
+Both cells record two separate track entries, both entries name
+`qwen/qwen3.5-flash-02-23`, all 32 logical calls were physically dispatched,
+and no packet or reserved-call path was active. On seed 9201, the first
+Comparator invocation completed with `passed=true` on Qwen call 7; the queued
+second candidate was then superseded by verified success. The observed smoke
+rate was 1/2 and total provider cost was $0.070838625.
+
+The complete descriptors, provenance, transcripts, events, checkpoints, and
+terminal results are archived under `qq-smoke/` beside this gate.
+
+This gate authorizes Part B under the user's separate launch conditions; Part
+B was not launched in this development session.

@@ -221,3 +221,8 @@ ImportError: cannot import name 'UTC' from 'datetime' (/usr/lib/python3.10/datet
     from datetime import UTC, datetime
 ImportError: cannot import name 'UTC' from 'datetime' (/usr/lib/python3.10/datetime.py)
 - 00:36 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 142 cells; passes per arm: qwen-solo-plus 18/32, gptoss-solo-plus 14/32, c0plus-reserve 23/32, c1plus-fill-reserve 22/32, c0-qq 12/14
+- 00:37 PT — confirm replay prelaunch failed: Traceback (most recent call last):
+  File "/opt/stage6-pusher/repo/scripts/build_stage6_confirm_replay_manifest.py", line 11, in <module>
+    from datetime import UTC, datetime
+ImportError: cannot import name 'UTC' from 'datetime' (/usr/lib/python3.10/datetime.py)
+- 00:37 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 143 cells; passes per arm: qwen-solo-plus 18/32, gptoss-solo-plus 14/32, c0plus-reserve 23/32, c1plus-fill-reserve 22/32, c0-qq 13/15

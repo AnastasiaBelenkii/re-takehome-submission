@@ -27,3 +27,15 @@ The eight problems are selected from the completed expanded screen by distance t
 ## Solo extension for the virtual-portfolio control
 
 Only after all 128 primary cells have dispatched, and only if that occurs no later than 23:00 PT, append 64 separately labelled cells: the same problem order, seeds 8105–8108, and adjacent arms `qwen-solo-plus`, `gptoss-solo-plus`. Calls and verification settings are identical to the primary confirmation. The global order is seed-major, then problem, then arm. These cells share the confirmation archive and use `analysis_set = solo_extension_virtual_portfolio`.
+
+## Real same-model portfolio control (appended after primary queue)
+
+Part A gate: **PASSED** on branch , SHA . The 32 
+cells are appended after all 128 frozen primary descriptors, preserving every
+already-queued descriptor and global order. They use seeds 8101–8104 and the same
+eight confirm-study problems; both tracks are Qwen with explicit IDs  and
+, silent communication, and no reserved call.
+
+Prediction: H1 is that the c0-qq rate lies within ±0.05 of  from
+the same-block qwen-solo-plus cells. A larger deficit indicates correlated Qwen draws;
+a larger surplus indicates an effect beyond independent sampling.

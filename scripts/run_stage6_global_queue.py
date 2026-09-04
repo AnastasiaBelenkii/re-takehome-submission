@@ -76,11 +76,16 @@ def main() -> int:
     parser.add_argument("--state", type=Path, required=True)
     parser.add_argument("--remote-root", required=True)
     parser.add_argument("--runtime", required=True)
+    parser.add_argument(
+        "--runtime-by-condition",
+        help="JSON object mapping task conditions to worker-local runtime paths",
+    )
     parser.add_argument("--session", required=True)
     parser.add_argument("--launch-deadline", help="optional per-cell dispatch deadline")
     parser.add_argument("--hosts", nargs="+", required=True)
     parser.add_argument("--poll-seconds", type=float, default=5)
     args = parser.parse_args()
+    runtime_by_condition = json.loads(args.runtime_by_condition) if args.runtime_by_condition else {}
 
     deadline = datetime.fromisoformat(args.launch_deadline) if args.launch_deadline else None
     queue = json.loads(args.queue.read_text())
@@ -205,8 +210,8 @@ def main() -> int:
             retry_prelaunch(("scp", "-q", *SSH_OPTIONS, str(descriptor_file), f"{target}:{remote_worker}/descriptor.json"))
             retry_prelaunch(("scp", "-q", *SSH_OPTIONS, str(queue_file), f"{target}:{remote_worker}/queue.json"))
             command = (
-                f"cd {args.runtime} && exec .venv/bin/python scripts/run_remote_microcell_queue.py "
-                f"--worktree {args.runtime} --queue {remote_worker}/queue.json "
+                f"cd {shlex.quote(runtime_by_condition.get(descriptor['task'].get('condition'), args.runtime))} && exec .venv/bin/python scripts/run_remote_microcell_queue.py "
+                f"--worktree {shlex.quote(runtime_by_condition.get(descriptor['task'].get('condition'), args.runtime))} --queue {remote_worker}/queue.json "
                 f"--run-root {remote_worker} >> {remote_worker}/queue.log 2>&1"
             )
             launch_command = f"tmux new-session -d -s {shlex.quote(args.session)} {shlex.quote(command)}"

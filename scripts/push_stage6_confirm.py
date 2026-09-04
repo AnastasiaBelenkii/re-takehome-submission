@@ -119,7 +119,11 @@ def state_counts(state: dict) -> tuple[int, int, int]:
 
 
 def maybe_finish_replay(log_text: str) -> bool:
-    if "confirm replay launched" not in log_text or "confirm replay pushed:" in log_text:
+    if (
+        "confirm replay launched" not in log_text
+        or "confirm replay pushed:" in log_text
+        or "confirm replay skipped remaining" in log_text
+    ):
         return False
     local = Path("/opt/stage6-pusher/confirm-replay")
     local.mkdir(parents=True, exist_ok=True)
@@ -155,7 +159,13 @@ def maybe_finish_replay(log_text: str) -> bool:
         f"Without packet: {wop}/{len(without_rows)} warm passes ({wor:.3f}).\n\n"
         f"Paired difference (with minus without): {wr - wor:+.3f}.\n"
     )
-    append_log(f"confirm replay pushed: {sources} requests.")
+    if result.get("status") == "complete":
+        append_log(f"confirm replay pushed: {sources} requests.")
+    else:
+        append_log(
+            f"confirm replay skipped remaining requests at the fixed $3 cap: "
+            f"{len(rows)}/{result.get('planned_jobs', '?')} reissues terminal."
+        )
     message = (
         "Archive roots experiments/analysis/packet-replay-confirm.csv and "
         "experiments/analysis/PACKET_REPLAY_CONFIRM_SUMMARY.md; "

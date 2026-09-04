@@ -84,3 +84,5 @@
 - 23:00 PT — solo extension skipped: not all 128 primary cells had dispatched by the 23:00 PT cutoff.
 - 23:00 PT — qq arm skipped at 23:00 PT: the required solo extension did not dispatch before its cutoff.
 - 23:00 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 85 cells; passes per arm: qwen-solo-plus 13/21, gptoss-solo-plus 10/20, c0plus-reserve 18/22, c1plus-fill-reserve 16/22, c0-qq 0/0
+- 23:30 PT — 23:30 PT confirm status — confirm 102/9/17 terminal/running/queued; passes qwen-solo-plus 15/26, gptoss-solo-plus 10/26, c0plus-reserve 19/25, c1plus-fill-reserve 17/25, c0-qq 0/0.
+- 23:30 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 102 cells; passes per arm: qwen-solo-plus 15/26, gptoss-solo-plus 10/26, c0plus-reserve 19/25, c1plus-fill-reserve 17/25, c0-qq 0/0

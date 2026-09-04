@@ -243,6 +243,10 @@ def main() -> int:
             append_log("solo extension skipped: not all 128 primary cells had dispatched by the 23:00 PT cutoff.")
             log_text += "solo extension skipped:"
             changed = True
+        if "solo extension skipped:" in log_text and "qq arm launched" not in log_text and "qq arm skipped:" not in log_text:
+            append_log("qq arm skipped: the required solo extension did not dispatch before its cutoff.")
+            log_text += "qq arm skipped:"
+            changed = True
         if state.get("phase") == "complete" and "confirm complete," not in log_text:
             append_log(f"confirm complete, {terminal} cells terminal; replay gate ready.")
             changed = True
@@ -267,7 +271,7 @@ def main() -> int:
         if changed or time.monotonic() - last_push >= 1800:
             push(results)
             last_push = time.monotonic()
-        time.sleep(60)
+        time.sleep(30)
 
 
 if __name__ == "__main__":

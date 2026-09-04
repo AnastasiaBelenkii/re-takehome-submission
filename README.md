@@ -4,7 +4,7 @@ Verified Mechanisms Research Engineer take-home, Jacob Belenkii, September 2026.
 
 **Writeup:** `writeup.pdf` (12 pages plus appendices). Section 1 has the answers.
 
-**Submitted agent:** `submission/agent.py`, condition `c1plus-fill-reserve`: two asynchronous model tracks with a warm-Lean repair loop and partial-proof salvage, compiler-grounded progress packets between the tracks, one reserved call, and a fresh pinned Comparator on every warm-accepted candidate. `scripts/judge_check.sh` passes from a fresh clone of `main` (commit `9333436`).
+**Submitted agent:** `submission/agent.py`, condition `c1plus-fill-reserve`: two asynchronous model tracks with a warm-Lean repair loop and partial-proof salvage, compiler-grounded progress packets between the tracks, one reserved call, and a fresh pinned Comparator on every warm-accepted candidate. The promoted agent originates at commit `9333436`; `scripts/judge_check.sh` is the final-contract rehearsal for a fresh clone of `main`.
 
 **Results in one line:** the two-model portfolio solves the union of what each model solves alone, and that union is Qwen's set; letting the tracks exchange packets changes nothing detectable (talking minus silent −0.04, 95% interval −0.20 to +0.13, on the four band problems at six seeds).
 

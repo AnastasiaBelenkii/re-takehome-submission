@@ -73,3 +73,5 @@
 - 21:30 PT — 21:30 PT confirm status — confirm 30/9/89 terminal/running/queued; passes qwen-solo-plus 5/7, gptoss-solo-plus 4/7, c0plus-reserve 7/8, c1plus-fill-reserve 7/8, c0-qq 0/0.
 - 21:30 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 30 cells; passes per arm: qwen-solo-plus 5/7, gptoss-solo-plus 4/7, c0plus-reserve 7/8, c1plus-fill-reserve 7/8, c0-qq 0/0
 - 21:42 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 38 cells; passes per arm: qwen-solo-plus 6/10, gptoss-solo-plus 4/9, c0plus-reserve 8/10, c1plus-fill-reserve 7/9, c0-qq 0/0
+- 21:43 PT — qq arm skipped: the required solo extension did not dispatch before its cutoff.
+- 21:43 PT — PUSH: Archive root evidence/archives/stage6-confirm-20260903; 39 cells; passes per arm: qwen-solo-plus 6/10, gptoss-solo-plus 4/10, c0plus-reserve 8/10, c1plus-fill-reserve 7/9, c0-qq 0/0

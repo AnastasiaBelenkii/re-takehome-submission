@@ -27,6 +27,7 @@ runtime="/opt/sfrv2-qq-arm-v1-$short/checkout"
 stage=$(mktemp -d /opt/stage6-qq-runtime.XXXXXX)
 trap 'rm -rf "$stage"' EXIT
 git archive "$sha" | tar -x -C "$stage"
+cp -a "$base_runtime/sample-problems/manifest.json" "$stage/sample-problems/manifest.json"
 for problem in \
   aime_1983_p1 aime_1990_p4 algebra_amgm_sumasqdivbgeqsuma aime_1990_p15 \
   aime_1997_p9 algebra_others_exirrpowirrrat \

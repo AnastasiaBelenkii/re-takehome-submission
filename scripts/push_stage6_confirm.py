@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import csv
 import os
 import shutil
 import subprocess
@@ -19,6 +20,7 @@ LOG = ROOT / "experiments/stage6-expanded/LOG.md"
 REMOTE = "/opt/stage6-confirm-20260903/global"
 SOLO_REMOTE = "/opt/stage6-confirm-20260903/solo-global"
 QQ_REMOTE = "/opt/stage6-confirm-20260903/qq-global"
+REPLAY_REMOTE = "/opt/stage6-confirm-replay-20260903"
 HOSTS = ("marketplace", "worker2", "worker3", "worker4", "worker5", "worker6", "worker7", "worker8", "worker10")
 TARGETS = {
     "marketplace": None,
@@ -116,6 +118,59 @@ def state_counts(state: dict) -> tuple[int, int, int]:
     )
 
 
+def maybe_finish_replay(log_text: str) -> bool:
+    if "confirm replay launched" not in log_text or "confirm replay pushed:" in log_text:
+        return False
+    local = Path("/opt/stage6-pusher/confirm-replay")
+    local.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ("rsync", "-a", "--timeout=30", f"worker9:{REPLAY_REMOTE}/output/", f"{local}/"),
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    result_path = local / "result.json"
+    if not result_path.exists():
+        return False
+    result = json.loads(result_path.read_text())
+    if result.get("status") not in {"complete", "budget_cap"}:
+        return False
+    rows: list[dict[str, str]] = []
+    with (local / "packet-replay.csv").open(newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    destination = ROOT / "experiments/analysis/packet-replay-confirm.csv"
+    shutil.copy2(local / "packet-replay.csv", destination)
+    sources = len({row["source_call_id"] for row in rows})
+    with_rows = [row for row in rows if row["variant"] == "with_packet"]
+    without_rows = [row for row in rows if row["variant"] == "without_packet"]
+    warm = lambda values: sum(
+        row.get("warm_accepted", "").lower() == "true" and not row.get("error")
+        for row in values
+    )
+    wp, wop = warm(with_rows), warm(without_rows)
+    wr = wp / len(with_rows) if with_rows else 0.0
+    wor = wop / len(without_rows) if without_rows else 0.0
+    summary = ROOT / "experiments/analysis/PACKET_REPLAY_CONFIRM_SUMMARY.md"
+    summary.write_text(
+        f"Requests: {sources} packet-exposed source requests; {len(rows)} completed reissues.\n\n"
+        f"With packet: {wp}/{len(with_rows)} warm passes ({wr:.3f}).\n\n"
+        f"Without packet: {wop}/{len(without_rows)} warm passes ({wor:.3f}).\n\n"
+        f"Paired difference (with minus without): {wr - wor:+.3f}.\n"
+    )
+    append_log(f"confirm replay pushed: {sources} requests.")
+    message = (
+        "Archive roots experiments/analysis/packet-replay-confirm.csv and "
+        "experiments/analysis/PACKET_REPLAY_CONFIRM_SUMMARY.md; "
+        f"{len(rows)} replay cells; passes per variant: with-packet {wp}/{len(with_rows)}, "
+        f"without-packet {wop}/{len(without_rows)}"
+    )
+    append_log("PUSH: " + message)
+    git("add", "experiments/analysis/packet-replay-confirm.csv",
+        "experiments/analysis/PACKET_REPLAY_CONFIRM_SUMMARY.md",
+        "experiments/stage6-expanded/LOG.md")
+    git("commit", "-m", message)
+    git("push", "origin", "HEAD:evidence/results-20260902")
+    return True
+
+
 def push(results: list[dict]) -> None:
     passed, totals = counts(results)
     arms = ", ".join(f"{arm} {passed[arm]}/{totals[arm]}" for arm in ARMS)
@@ -181,6 +236,24 @@ def main() -> int:
         if state.get("phase") == "complete" and "confirm complete," not in log_text:
             append_log(f"confirm complete, {terminal} cells terminal; replay gate ready.")
             changed = True
+        c1_tasks = [
+            item for task_id, item in state.get("tasks", {}).items()
+            if task_id.endswith("-c1plus-fill-reserve")
+        ]
+        c1_terminal = c1_tasks and all(
+            item.get("status") in {"complete", "exited_incomplete"} for item in c1_tasks
+        )
+        if c1_terminal and "confirm replay launched" not in log_text:
+            launch = subprocess.run(
+                ("sh", str(ROOT / "scripts/launch_stage6_confirm_replay.sh")),
+                cwd=ROOT, text=True, capture_output=True,
+            )
+            if launch.returncode != 0:
+                append_log(f"confirm replay prelaunch failed: {launch.stderr.strip()}")
+                changed = True
+            log_text = LOG.read_text() if LOG.exists() else log_text
+        if maybe_finish_replay(log_text):
+            log_text = LOG.read_text()
         if changed or time.monotonic() - last_push >= 1800:
             push(results)
             last_push = time.monotonic()

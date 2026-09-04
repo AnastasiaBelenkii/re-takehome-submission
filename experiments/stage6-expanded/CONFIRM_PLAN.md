@@ -30,12 +30,12 @@ Only after all 128 primary cells have dispatched, and only if that occurs no lat
 
 ## Real same-model portfolio control (appended after primary queue)
 
-Part A gate: **PASSED** on branch , SHA . The 32 
-cells are appended after all 128 frozen primary descriptors, preserving every
+Part A gate: **PASSED** on branch `qq-arm-v1`, SHA `b0194b82e472ee1250d89afce2090a3d04888cea`. The 32
+`c0-qq` cells are appended after all 128 frozen primary descriptors, preserving every
 already-queued descriptor and global order. They use seeds 8101–8104 and the same
-eight confirm-study problems; both tracks are Qwen with explicit IDs  and
-, silent communication, and no reserved call.
+eight confirm-study problems; both tracks are Qwen with explicit IDs `qwen#1` and
+`qwen#2`, silent communication, and no reserved call.
 
-Prediction: H1 is that the c0-qq rate lies within ±0.05 of  from
+Prediction: H1 is that the c0-qq rate lies within ±0.05 of `1 − (1 − p_Q)²` from
 the same-block qwen-solo-plus cells. A larger deficit indicates correlated Qwen draws;
-a larger surplus indicates an effect beyond independent sampling.
+a larger surplus indicates something beyond independent sampling.

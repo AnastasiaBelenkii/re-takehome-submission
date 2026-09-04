@@ -44,3 +44,5 @@
 - 17:01 PT — 17:00 PT status — calibration: terminal 128 / running 0 / queued 0, passes qwen-solo-plus 68/128; screen: terminal 113 / running 9 / queued 134, passes qwen-solo-plus 43/113; confirm: not launched.
 - 17:01 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 113 cells; passes per arm: qwen-solo-plus 43/113
 - 17:32 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 140 cells; passes per arm: qwen-solo-plus 51/140
+- 17:45 PT — solo extension skipped: confirm was not launched before its 17:45 PT cutoff.
+- 17:45 PT — PUSH: Archive root evidence/archives/stage6-pass8-20260903; 151 cells; passes per arm: qwen-solo-plus 52/151

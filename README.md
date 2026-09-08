@@ -29,7 +29,7 @@ On the replication set, the silent Qwen + Qwen policy was the strongest tested a
 
 [`submission/agent.py`](submission/agent.py) runs one Qwen track and one GPT-OSS track concurrently. Each performs its own compiler-guided repair loop; candidates, compiler feedback, and model responses are not shared between tracks. The implementation preserves the judging contract and records the result, transcript, event log, and submitted Lean file for each problem.
 
-The submitted agent is intentionally identified as a **silent portfolio**. The talking policies, same-model portfolio, replay studies, and development variants are experimental comparisons rather than hidden parts of the final entrypoint.
+The shipped entrypoint is the **`c1plus-fill-reserve`** agent. It runs one Qwen track and one GPT-OSS track independently, salvages compiler-checked partial proofs, and exchanges compiler-validated progress packets with a reserved fill call. It is therefore a talking C1+ system, not the silent portfolio; the silent and same-model portfolios above are experimental comparison arms, not the submitted entrypoint. The promoted factory is `submission.agent:create_agent`.
 
 ## Run the submission
 
